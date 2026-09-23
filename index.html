@@ -1,33 +1,275 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
   <title>Light Speed Future 2.0 ⚡</title>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #111;
+      color: white;
+      display: flex;
+      justify-content: center;
+      min-height: 100vh;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 800px;
+      padding: 25px;
+      box-sizing: border-box;
+    }
+
+    h1 {
+      text-align: center;
+    }
+
+    #chat {
+      min-height: 400px;
+      max-height: 60vh;
+      overflow-y: auto;
+      padding: 15px;
+      border: 1px solid #333;
+      border-radius: 12px;
+      background: #181818;
+    }
+
+    .message {
+      margin: 12px 0;
+      padding: 12px;
+      border-radius: 10px;
+      white-space: pre-wrap;
+    }
+
+    .user {
+      background: #252525;
+    }
+
+    .ai {
+      background: #202020;
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin-top: 15px;
+    }
+
+    input {
+      flex: 1;
+      padding: 14px;
+      border-radius: 10px;
+      border: 1px solid #444;
+      background: #181818;
+      color: white;
+      font-size: 16px;
+    }
+
+    button {
+      padding: 14px 20px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    #status {
+      text-align: center;
+      color: #aaa;
+      margin: 10px;
+    }
+  </style>
 </head>
 
 <body>
+
+<div class="app">
+
   <h1>Light Speed Future 2.0 ⚡</h1>
-  <p>Your personal AI assistant.</p>
 
-  <input id="question" placeholder="Ask me anything..." />
-  <button onclick="askAI()">Ask</button>
+  <div id="status">Loading AI...</div>
 
-  <p id="answer">I'm online! ⚡</p>
+  <div id="chat"></div>
 
-  <script>
-    function askAI() {
-      const question = document.getElementById("question").value;
-      const answer = document.getElementById("answer");
+  <div class="controls">
+    <input
+      id="question"
+      type="text"
+      placeholder="Ask Light Speed Future anything..."
+    >
 
-      if (!question) {
-        answer.textContent = "Ask me something!";
-        return;
+    <button id="send">Send</button>
+  </div>
+
+</div>
+
+<script type="module">
+
+  import { pipeline } from
+    "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.2";
+
+  const chat = document.getElementById("chat");
+  const question = document.getElementById("question");
+  const send = document.getElementById("send");
+  const status = document.getElementById("status");
+
+  let generator = null;
+
+  const conversation = [
+    {
+      role: "system",
+      content:
+        "You are Light Speed Future, a highly capable personal AI assistant. " +
+        "Answer clearly, accurately, practically, and directly. " +
+        "Answer the question first. " +
+        "Explain things simply when needed. " +
+        "Use step-by-step instructions for complicated tasks. " +
+        "Remember relevant information from the current conversation. " +
+        "Do not make up facts."
+    }
+  ];
+
+  async function loadAI() {
+
+    try {
+
+      status.textContent = "Loading Light Speed Future's AI...";
+
+      generator = await pipeline(
+        "text-generation",
+        "onnx-community/SmolLM2-360M-ONNX"
+      );
+
+      status.textContent = "Light Speed Future is online! ⚡";
+
+    } catch (error) {
+
+      console.error(error);
+
+      status.textContent =
+        "AI could not load. Check the browser console.";
+
+    }
+  }
+
+  function addMessage(sender, text, className) {
+
+    const message = document.createElement("div");
+
+    message.className = "message " + className;
+
+    message.textContent = sender + ": " + text;
+
+    chat.appendChild(message);
+
+    chat.scrollTop = chat.scrollHeight;
+  }
+
+  async function askAI() {
+
+    const text = question.value.trim();
+
+    if (!text || !generator) {
+      return;
+    }
+
+    question.value = "";
+
+    addMessage("You", text, "user");
+
+    send.disabled = true;
+
+    status.textContent = "Thinking... ⚡";
+
+    conversation.push({
+      role: "user",
+      content: text
+    });
+
+    try {
+
+      const result = await generator(conversation, {
+        max_new_tokens: 150,
+        temperature: 0.7,
+        do_sample: true
+      });
+
+      const output =
+        result[0].generated_text;
+
+      let answer = "";
+
+      if (Array.isArray(output)) {
+
+        const lastMessage =
+          output[output.length - 1];
+
+        answer =
+          lastMessage.content || "";
+
+      } else {
+
+        answer = output;
       }
 
-      answer.textContent =
-        "You asked: " + question + " ⚡ Light Speed Future is thinking...";
+      answer = answer.trim();
+
+      addMessage(
+        "Light Speed Future",
+        answer,
+        "ai"
+      );
+
+      conversation.push({
+        role: "assistant",
+        content: answer
+      });
+
+      status.textContent =
+        "Light Speed Future is online! ⚡";
+
+    } catch (error) {
+
+      console.error(error);
+
+      addMessage(
+        "Light Speed Future",
+        "I couldn't generate an answer. Please try again.",
+        "ai"
+      );
+
+      status.textContent =
+        "Something went wrong.";
+
     }
-  </script>
+
+    send.disabled = false;
+
+    question.focus();
+  }
+
+  send.addEventListener("click", askAI);
+
+  question.addEventListener("keydown", function(event) {
+
+    if (event.key === "Enter") {
+      askAI();
+    }
+
+  });
+
+  loadAI();
+
+</script>
+
 </body>
 </html>
