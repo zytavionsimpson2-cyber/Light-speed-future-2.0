@@ -184,18 +184,15 @@ async function startAI() {
 
 async function askAI() {
 
-  if (loading || thinking) return;
+    if (loading || thinking) return;
 
   const text = question.value.trim();
 
   if (!text) return;
 
   thinking = true;
-
   send.disabled = true;
-
   question.disabled = true;
-
   question.value = "";
 
   addMessage("You", text, "user");
@@ -209,44 +206,28 @@ async function askAI() {
 
   try {
 
-    const result = await generator(messages, {
+    const prompt = messages
+      .map(message => {
+        return message.role + ": " + message.content;
+      })
+      .join("\n") + "\nassistant:";
+
+    const result = await generator(prompt, {
       max_new_tokens: 80,
       temperature: 0.7,
       do_sample: true
     });
 
-    let answer = "";
+    let answer = result[0].generated_text;
 
-    if (
-      result &&
-      result[0] &&
-      result[0].generated_text
-    ) {
+    answer = answer
+      .replace(prompt, "")
+      .replace(/^assistant:\s*/i, "")
+      .trim();
 
-      const generated =
-        result[0].generated_text;
-
-      if (Array.isArray(generated)) {
-
-        answer =
-          generated[generated.length - 1]?.content || "";
-
-      } else {
-
-        answer = generated;
-
-      }
-
+    if (!answer) {
+      answer = "I couldn't generate an answer. Please try again.";
     }
-
-    if (!answer.trim()) {
-
-      answer =
-        "I didn't get a response. Please try asking again.";
-
-    }
-
-    answer = answer.trim();
 
     addMessage(
       "Light Speed Future",
@@ -268,7 +249,7 @@ async function askAI() {
 
     addMessage(
       "Light Speed Future",
-      "I ran into an error while generating that answer.",
+      "I couldn't generate an answer. Please try again.",
       "ai"
     );
 
@@ -278,13 +259,12 @@ async function askAI() {
   }
 
   thinking = false;
-
   send.disabled = false;
-
   question.disabled = false;
-
   question.focus();
+
 }
+
 
 send.addEventListener("click", askAI);
 
