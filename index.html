@@ -234,7 +234,7 @@ if (typeof answer !== "string") {
 }
 
 answer = answer.trim();
-
+answer = answer.split(/[.!?]/)[0] + ".";
 const stopWords = [
   "Question:",
   "Answer:",
