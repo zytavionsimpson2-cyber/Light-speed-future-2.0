@@ -60,8 +60,6 @@
     }
 
     .controls {
-      display: flex;
-      gap: 10px;
       margin-bottom: 15px;
     }
 
@@ -114,11 +112,7 @@
     <div id="chat"></div>
 
     <div class="controls">
-
-      <button id="clearMemory">
-        🗑️ Clear Memory
-      </button>
-
+      <button id="clearMemory">🗑️ Clear Memory</button>
     </div>
 
     <div class="input-area">
@@ -129,9 +123,7 @@
         placeholder="Ask Light Speed Future something..."
       >
 
-      <button id="sendButton">
-        Send
-      </button>
+      <button id="sendButton">Send</button>
 
     </div>
 
@@ -148,10 +140,34 @@
 
 
     /*
-      LOAD SAVED MEMORY
+      ---------------------------------------
+      MEMORY
+      ---------------------------------------
     */
 
     let messages = [];
+
+    let savedFacts = {};
+
+
+    function createNewMemory() {
+
+      return [
+        {
+          role: "system",
+          content:
+            "You are Light Speed Future, a personal AI assistant. " +
+            "Answer questions directly and clearly. " +
+            "Never invent personal information."
+        }
+      ];
+
+    }
+
+
+    /*
+      LOAD SAVED CONVERSATION
+    */
 
     const savedMemory =
       localStorage.getItem("lightSpeedMemory");
@@ -161,64 +177,17 @@
 
       try {
 
-        messages = JSON.parse(savedMemory);
+        messages =
+          JSON.parse(savedMemory);
 
       } catch (error) {
 
-        messages = [];
+        messages =
+          createNewMemory();
 
       }
 
-    }
-
-
-    /*
-      CREATE SYSTEM INSTRUCTIONS
-      IF THERE IS NO MEMORY
-    */
-
-    function createNewMemory() {
-
-      return [
-
-        {
-          role: "system",
-
-          content:
-            "You are Light Speed Future, a personal AI assistant. " +
-
-            "Only use facts directly provided by the user " +
-            "or clearly stated in the conversation. " +
-
-            "Never invent personal information. " +
-
-            "Never guess the user's name, birthday, age, " +
-            "location, favorite things, family, or other facts. " +
-
-            "If the user says their favorite color is blue, " +
-            "remember that their favorite color is blue. " +
-
-            "If the user later asks their favorite color, " +
-            "answer that their favorite color is blue. " +
-
-            "Do not create facts that were never provided. " +
-
-            "Answer the actual question directly. " +
-
-            "For simple questions, use one short sentence. " +
-
-            "Do not repeat the question."
-        }
-
-      ];
-
-    }
-
-
-    if (
-      !Array.isArray(messages) ||
-      messages.length === 0
-    ) {
+    } else {
 
       messages =
         createNewMemory();
@@ -226,28 +195,32 @@
     }
 
 
-    const chat =
-      document.getElementById("chat");
+    /*
+      LOAD SAVED FACTS
+    */
+
+    const savedFacts =
+      localStorage.getItem("lightSpeedFacts");
 
 
-    const status =
-      document.getElementById("status");
+    if (savedFacts) {
 
+      try {
 
-    const input =
-      document.getElementById("userInput");
+        savedFacts =
+          JSON.parse(savedFacts);
 
+      } catch (error) {
 
-    const sendButton =
-      document.getElementById("sendButton");
+        savedFacts = {};
 
+      }
 
-    const clearMemory =
-      document.getElementById("clearMemory");
+    }
 
 
     /*
-      SAVE MEMORY
+      SAVE EVERYTHING
     */
 
     function saveMemory() {
@@ -257,11 +230,177 @@
         JSON.stringify(messages)
       );
 
+      localStorage.setItem(
+        "lightSpeedFacts",
+        JSON.stringify(savedFacts)
+      );
+
     }
 
 
     /*
-      DISPLAY A MESSAGE
+      ---------------------------------------
+      FIND FACTS IN USER MESSAGES
+      ---------------------------------------
+    */
+
+    function rememberFact(text) {
+
+      const lower =
+        text.toLowerCase().trim();
+
+
+      /*
+        Example:
+
+        My favorite color is blue
+      */
+
+      const favoriteMatch =
+        lower.match(
+          /^my\s+(.+?)\s+is\s+(.+?)\.?$/
+        );
+
+
+      if (favoriteMatch) {
+
+        const subject =
+          favoriteMatch[1]
+            .trim()
+            .replace(/\?$/, "");
+
+        const value =
+          favoriteMatch[2]
+            .trim()
+            .replace(/[.!?]+$/, "");
+
+
+        if (
+          subject &&
+          value &&
+          subject.length < 60 &&
+          value.length < 100
+        ) {
+
+          savedFacts[subject] =
+            value;
+
+          saveMemory();
+
+        }
+
+      }
+
+    }
+
+
+    /*
+      ---------------------------------------
+      LOOK FOR A SAVED FACT
+      ---------------------------------------
+    */
+
+    function findSavedFact(text) {
+
+      const lower =
+        text.toLowerCase().trim();
+
+
+      /*
+        Example:
+
+        What is my favorite color?
+      */
+
+      const questionMatch =
+        lower.match(
+          /^what(?:'s| is)\s+my\s+(.+?)\??$/
+        );
+
+
+      if (!questionMatch) {
+
+        return null;
+
+      }
+
+
+      const subject =
+        questionMatch[1]
+          .trim();
+
+
+      /*
+        Exact match
+      */
+
+      if (
+        savedFacts[subject]
+      ) {
+
+        return {
+          subject: subject,
+          value: savedFacts[subject]
+        };
+
+      }
+
+
+      /*
+        Try matching saved subjects
+        even if punctuation differs.
+      */
+
+      for (
+        const key of Object.keys(savedFacts)
+      ) {
+
+        if (
+          key.toLowerCase() ===
+          subject.toLowerCase()
+        ) {
+
+          return {
+            subject: key,
+            value: savedFacts[key]
+          };
+
+        }
+
+      }
+
+
+      return null;
+
+    }
+
+
+    /*
+      ---------------------------------------
+      PAGE ELEMENTS
+      ---------------------------------------
+    */
+
+    const chat =
+      document.getElementById("chat");
+
+    const status =
+      document.getElementById("status");
+
+    const input =
+      document.getElementById("userInput");
+
+    const sendButton =
+      document.getElementById("sendButton");
+
+    const clearMemory =
+      document.getElementById("clearMemory");
+
+
+    /*
+      ---------------------------------------
+      DISPLAY MESSAGE
+      ---------------------------------------
     */
 
     function addMessage(sender, text) {
@@ -289,7 +428,6 @@
 
       chat.appendChild(message);
 
-
       chat.scrollTop =
         chat.scrollHeight;
 
@@ -297,7 +435,9 @@
 
 
     /*
-      DISPLAY SAVED CHAT
+      ---------------------------------------
+      LOAD OLD CHAT
+      ---------------------------------------
     */
 
     function loadChat() {
@@ -307,7 +447,9 @@
 
       for (const message of messages) {
 
-        if (message.role === "user") {
+        if (
+          message.role === "user"
+        ) {
 
           addMessage(
             "You",
@@ -317,7 +459,9 @@
         }
 
 
-        if (message.role === "assistant") {
+        if (
+          message.role === "assistant"
+        ) {
 
           addMessage(
             "AI",
@@ -332,7 +476,9 @@
 
 
     /*
-      CLEAR MEMORY BUTTON
+      ---------------------------------------
+      CLEAR MEMORY
+      ---------------------------------------
     */
 
     clearMemory.addEventListener(
@@ -343,9 +489,15 @@
           "lightSpeedMemory"
         );
 
+        localStorage.removeItem(
+          "lightSpeedFacts"
+        );
+
 
         messages =
           createNewMemory();
+
+        savedFacts = {};
 
 
         chat.innerHTML = "";
@@ -370,7 +522,9 @@
 
 
     /*
+      ---------------------------------------
       LOAD AI
+      ---------------------------------------
     */
 
     async function loadAI() {
@@ -409,7 +563,9 @@
 
 
     /*
+      ---------------------------------------
       ASK AI
+      ---------------------------------------
     */
 
     async function askAI() {
@@ -428,13 +584,21 @@
       input.value = "";
 
 
-      sendButton.disabled = true;
+      sendButton.disabled =
+        true;
 
 
       addMessage(
         "You",
         text
       );
+
+
+      /*
+        REMEMBER FACTS
+      */
+
+      rememberFact(text);
 
 
       /*
@@ -456,8 +620,54 @@
       try {
 
         /*
-          SEND THE CONVERSATION
-          TO THE AI
+          -----------------------------------
+          CHECK SAVED MEMORY FIRST
+          -----------------------------------
+        */
+
+        const savedFact =
+          findSavedFact(text);
+
+
+        if (savedFact) {
+
+          const answer =
+            `Your ${savedFact.subject} is ${savedFact.value}.`;
+
+
+          messages.push({
+
+            role: "assistant",
+
+            content: answer
+
+          });
+
+
+          saveMemory();
+
+
+          addMessage(
+            "AI",
+            answer
+          );
+
+
+          sendButton.disabled =
+            false;
+
+          input.focus();
+
+          return;
+
+        }
+
+
+        /*
+          -----------------------------------
+          IF THERE IS NO SAVED FACT,
+          USE THE AI MODEL
+          -----------------------------------
         */
 
         const prompt =
@@ -474,15 +684,10 @@
           await generator(
             prompt,
             {
-
               max_new_tokens: 40,
-
               temperature: 0.05,
-
               do_sample: true,
-
               return_full_text: false
-
             }
           );
 
@@ -501,7 +706,9 @@
         }
 
 
-        if (typeof answer !== "string") {
+        if (
+          typeof answer !== "string"
+        ) {
 
           answer =
             String(answer || "");
@@ -512,10 +719,6 @@
         answer =
           answer.trim();
 
-
-        /*
-          REMOVE MODEL MARKERS
-        */
 
         answer =
           answer
@@ -534,12 +737,9 @@
             .trim();
 
 
-        /*
-          REMOVE A:
-          IF THE MODEL ADDS IT
-        */
-
-        if (answer.includes("A:")) {
+        if (
+          answer.includes("A:")
+        ) {
 
           answer =
             answer
@@ -612,7 +812,9 @@
       "keydown",
       function(event) {
 
-        if (event.key === "Enter") {
+        if (
+          event.key === "Enter"
+        ) {
 
           askAI();
 
@@ -623,7 +825,7 @@
 
 
     /*
-      START AI
+      START
     */
 
     loadAI();
