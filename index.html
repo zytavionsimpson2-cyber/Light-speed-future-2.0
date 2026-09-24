@@ -149,6 +149,7 @@
 
   </div>
 
+
   <script type="module">
 
     import {
@@ -158,18 +159,23 @@
 
 
     // =========================================================
-    // MODEL / SPEED
+    // MODEL
     // =========================================================
 
     const MODEL =
       "onnx-community/Qwen2.5-0.5B-Instruct";
 
-    // Enough room for complete answers without excessive output.
-    const MAX_TOKENS = 40;
+
+    // =========================================================
+    // SPEED / ANSWER LENGTH
+    // =========================================================
+
+    // Enough tokens for a short COMPLETE answer.
+    const MAX_TOKENS = 48;
 
 
     // =========================================================
-    // ELEMENTS
+    // PAGE ELEMENTS
     // =========================================================
 
     const chat =
@@ -189,7 +195,7 @@
 
 
     // =========================================================
-    // MEMORY
+    // AI MEMORY
     // =========================================================
 
     let messages = [
@@ -197,17 +203,19 @@
         role: "system",
         content:
           "You are Light Speed Future 2.0. " +
-          "Answer the user's question directly and accurately. " +
-          "Be concise but finish your answer. " +
-          "Do not ramble or repeat yourself."
+          "Answer the user's question accurately and directly. " +
+          "Give a short complete answer, usually 1 to 3 sentences. " +
+          "Finish your sentence before stopping. " +
+          "Do not ramble, repeat yourself, or add unnecessary details."
       }
     ];
+
 
     let savedFacts = {};
 
 
     // =========================================================
-    // LOAD CONVERSATION MEMORY
+    // LOAD CONVERSATION
     // =========================================================
 
     try {
@@ -231,14 +239,14 @@
     } catch (error) {
 
       console.log(
-        "Memory could not be loaded."
+        "Could not load conversation memory."
       );
 
     }
 
 
     // =========================================================
-    // LOAD SAVED FACTS
+    // LOAD FACTS
     // =========================================================
 
     try {
@@ -262,7 +270,7 @@
     } catch (error) {
 
       console.log(
-        "Facts could not be loaded."
+        "Could not load saved facts."
       );
 
     }
@@ -280,7 +288,7 @@
 
 
     // =========================================================
-    // ESCAPE HTML
+    // HTML SAFETY
     // =========================================================
 
     function escapeHTML(text) {
@@ -296,7 +304,7 @@
 
 
     // =========================================================
-    // ADD MESSAGE
+    // DISPLAY MESSAGE
     // =========================================================
 
     function addMessage(type, text) {
@@ -306,6 +314,7 @@
 
       message.className =
         "message";
+
 
       if (type === "User") {
 
@@ -321,10 +330,14 @@
 
       }
 
-      chat.appendChild(message);
+
+      chat.appendChild(
+        message
+      );
 
       chat.scrollTop =
         chat.scrollHeight;
+
 
       return message;
 
@@ -332,23 +345,29 @@
 
 
     // =========================================================
-    // SHOW SAVED CONVERSATION
+    // SHOW OLD CHAT
     // =========================================================
 
     function showConversation() {
 
       chat.innerHTML = "";
 
-      const visible =
+
+      const visibleMessages =
         messages.filter(
           message =>
             message.role === "user" ||
             message.role === "assistant"
         );
 
-      for (const message of visible) {
 
-        if (message.role === "user") {
+      for (
+        const message of visibleMessages
+      ) {
+
+        if (
+          message.role === "user"
+        ) {
 
           addMessage(
             "User",
@@ -373,7 +392,7 @@
 
 
     // =========================================================
-    // SAVE MEMORY
+    // SAVE CHAT
     // =========================================================
 
     function saveMemory() {
@@ -431,20 +450,24 @@
           /^my\s+(.+?)\s+is\s+(.+)$/i
         );
 
+
       if (!match) {
 
         return false;
 
       }
 
+
       const key =
         match[1]
           .trim()
           .toLowerCase();
 
+
       const value =
         match[2]
           .trim();
+
 
       if (!key || !value) {
 
@@ -452,10 +475,13 @@
 
       }
 
+
       savedFacts[key] =
         value;
 
+
       saveFacts();
+
 
       return true;
 
@@ -463,7 +489,7 @@
 
 
     // =========================================================
-    // FIND SAVED FACT
+    // FIND FACT
     // =========================================================
 
     function findSavedFact(text) {
@@ -473,18 +499,23 @@
           /^what(?:'s| is)\s+my\s+(.+?)[?!.]*$/i
         );
 
+
       if (!match) {
 
         return null;
 
       }
 
+
       const key =
         match[1]
           .trim()
           .toLowerCase();
 
-      if (savedFacts[key]) {
+
+      if (
+        savedFacts[key]
+      ) {
 
         return (
           `Your ${key} is ` +
@@ -493,19 +524,21 @@
 
       }
 
+
       return null;
 
     }
 
 
     // =========================================================
-    // LOAD AI
+    // LOAD MODEL
     // =========================================================
 
     async function loadAI() {
 
       status.textContent =
         "Loading AI...";
+
 
       try {
 
@@ -518,10 +551,13 @@
             }
           );
 
+
         modelReady = true;
+
 
         status.textContent =
           "AI ready ⚡";
+
 
         input.disabled = false;
 
@@ -529,9 +565,11 @@
 
         input.focus();
 
+
       } catch (error) {
 
         console.error(error);
+
 
         status.textContent =
           "AI failed to load. Refresh and try again.";
@@ -542,7 +580,7 @@
 
 
     // =========================================================
-    // UNLOCK EVERYTHING
+    // FINISH GENERATION
     // =========================================================
 
     function finishGeneration() {
@@ -570,6 +608,7 @@
 
     async function askAI() {
 
+      // Stop multiple clicks.
       if (isGenerating) {
 
         return;
@@ -590,6 +629,7 @@
 
       isGenerating = true;
 
+
       input.disabled = true;
 
       sendButton.disabled = true;
@@ -597,56 +637,71 @@
       sendButton.textContent =
         "Thinking...";
 
+
       input.value = "";
 
 
-      // Show question immediately
+      // -------------------------------------------------------
+      // SHOW QUESTION
+      // -------------------------------------------------------
+
       addMessage(
         "User",
         text
       );
 
 
-      // Save question
+      // -------------------------------------------------------
+      // SAVE QUESTION
+      // -------------------------------------------------------
+
       messages.push({
         role: "user",
         content: text
       });
 
+
       saveMemory();
 
 
-      // =======================================================
-      // SAVE A FACT
-      // =======================================================
+      // -------------------------------------------------------
+      // SAVE FACT
+      // -------------------------------------------------------
 
-      if (rememberFact(text)) {
+      if (
+        rememberFact(text)
+      ) {
 
         const answer =
           "Got it. I'll remember that.";
+
 
         addMessage(
           "AI",
           answer
         );
 
+
         messages.push({
           role: "assistant",
           content: answer
         });
 
+
         saveMemory();
 
+
         finishGeneration();
+
 
         return;
 
       }
 
 
-      // =======================================================
-      // ANSWER FROM MEMORY
-      // =======================================================
+      // -------------------------------------------------------
+      // ANSWER SAVED FACT
+      // -------------------------------------------------------
 
       const savedAnswer =
         findSavedFact(text);
@@ -659,61 +714,76 @@
           savedAnswer
         );
 
+
         messages.push({
           role: "assistant",
           content: savedAnswer
         });
 
+
         saveMemory();
 
+
         finishGeneration();
+
 
         return;
 
       }
 
 
-      // =======================================================
-      // AI NOT READY
-      // =======================================================
+      // -------------------------------------------------------
+      // MODEL NOT READY
+      // -------------------------------------------------------
 
-      if (!modelReady || !generator) {
+      if (
+        !modelReady ||
+        !generator
+      ) {
 
         const answer =
           "I'm still loading. Try again in a moment.";
+
 
         addMessage(
           "AI",
           answer
         );
 
+
         messages.push({
           role: "assistant",
           content: answer
         });
 
+
         saveMemory();
 
+
         finishGeneration();
+
 
         return;
 
       }
 
 
-      // =======================================================
-      // CREATE STREAMING RESPONSE
-      // =======================================================
+      // -------------------------------------------------------
+      // CREATE ANSWER BOX
+      // -------------------------------------------------------
 
       const aiMessage =
         document.createElement("div");
 
+
       aiMessage.className =
         "message";
+
 
       aiMessage.innerHTML =
         `<strong class="ai">Light Speed Future:</strong> ` +
         `<span class="answer"></span>`;
+
 
       chat.appendChild(
         aiMessage
@@ -731,9 +801,9 @@
 
       try {
 
-        // =====================================================
-        // STREAM TOKENS
-        // =====================================================
+        // -----------------------------------------------------
+        // STREAM RESPONSE
+        // -----------------------------------------------------
 
         const streamer =
           new TextStreamer(
@@ -757,14 +827,15 @@
           );
 
 
-        // =====================================================
+        // -----------------------------------------------------
         // GENERATE
-        // =====================================================
+        // -----------------------------------------------------
 
         const output =
           await generator(
             messages,
             {
+
               max_new_tokens:
                 MAX_TOKENS,
 
@@ -773,15 +844,18 @@
 
               streamer:
                 streamer
+
             }
           );
 
 
-        // =====================================================
+        // -----------------------------------------------------
         // FALLBACK
-        // =====================================================
+        // -----------------------------------------------------
 
-        if (!answer.trim()) {
+        if (
+          !answer.trim()
+        ) {
 
           try {
 
@@ -790,8 +864,10 @@
 
 
             if (
-              Array.isArray(generated)
-            ) {
+              Array.isArray(
+                generated
+              )
+            {
 
               const last =
                 generated[
@@ -799,7 +875,10 @@
                 ];
 
 
-              if (last?.content) {
+              if (
+                last &&
+                last.content
+              ) {
 
                 answer =
                   last.content;
@@ -807,7 +886,8 @@
               }
 
             } else if (
-              typeof generated === "string"
+              typeof generated ===
+              "string"
             ) {
 
               answer =
@@ -818,7 +898,7 @@
           } catch (error) {
 
             console.log(
-              "Fallback failed."
+              "Fallback response failed."
             );
 
           }
@@ -826,14 +906,14 @@
         }
 
 
+        // -----------------------------------------------------
+        // CLEAN ANSWER
+        // -----------------------------------------------------
+
         answer =
           String(answer || "")
             .trim();
 
-
-        // =====================================================
-        // MAKE SURE ANSWER IS COMPLETE
-        // =====================================================
 
         if (!answer) {
 
@@ -847,11 +927,15 @@
           answer;
 
 
-        // Save response
+        // -----------------------------------------------------
+        // SAVE RESPONSE
+        // -----------------------------------------------------
+
         messages.push({
           role: "assistant",
           content: answer
         });
+
 
         saveMemory();
 
@@ -860,8 +944,10 @@
 
         console.error(error);
 
+
         answerElement.textContent =
           "Something went wrong. Try again.";
+
 
       } finally {
 
@@ -916,6 +1002,7 @@
           "lightSpeedMemory"
         );
 
+
         localStorage.removeItem(
           "lightSpeedFacts"
         );
@@ -926,8 +1013,9 @@
             role: "system",
             content:
               "You are Light Speed Future 2.0. " +
-              "Answer the user's question directly and accurately. " +
-              "Be concise but finish your answer. " +
+              "Answer the user's question accurately and directly. " +
+              "Give a short complete answer, usually 1 to 3 sentences. " +
+              "Finish your sentence before stopping. " +
               "Do not ramble or repeat yourself."
           }
         ];
@@ -950,12 +1038,13 @@
 
 
     // =========================================================
-    // START AI
+    // START
     // =========================================================
 
     input.disabled = true;
 
     sendButton.disabled = true;
+
 
     loadAI();
 
