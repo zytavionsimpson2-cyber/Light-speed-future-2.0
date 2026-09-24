@@ -107,7 +107,7 @@
 
     <h1>Light Speed Future 2.0 ⚡</h1>
 
-    <div id="status">Loading AI...</div>
+    <div id="status">Starting Light Speed Future...</div>
 
     <div id="chat"></div>
 
@@ -121,9 +121,12 @@
         id="userInput"
         type="text"
         placeholder="Ask Light Speed Future something..."
+        disabled
       >
 
-      <button id="sendButton">Send</button>
+      <button id="sendButton" disabled>
+        Loading...
+      </button>
 
     </div>
 
@@ -140,13 +143,12 @@
 
 
     /*
-      ---------------------------------------
+      =====================================
       MEMORY
-      ---------------------------------------
+      =====================================
     */
 
     let messages = [];
-
     let savedFacts = {};
 
 
@@ -155,10 +157,14 @@
       return [
         {
           role: "system",
+
           content:
             "You are Light Speed Future, a personal AI assistant. " +
+            "Only use facts directly provided by the user " +
+            "or clearly stated in the conversation. " +
+            "Never invent personal information. " +
             "Answer questions directly and clearly. " +
-            "Never invent personal information."
+            "For simple questions, use one short sentence."
         }
       ];
 
@@ -166,7 +172,7 @@
 
 
     /*
-      LOAD SAVED CONVERSATION
+      LOAD CONVERSATION MEMORY
     */
 
     const savedMemory =
@@ -199,16 +205,16 @@
       LOAD SAVED FACTS
     */
 
-    const savedFacts =
+    const storedFacts =
       localStorage.getItem("lightSpeedFacts");
 
 
-    if (savedFacts) {
+    if (storedFacts) {
 
       try {
 
         savedFacts =
-          JSON.parse(savedFacts);
+          JSON.parse(storedFacts);
 
       } catch (error) {
 
@@ -220,165 +226,9 @@
 
 
     /*
-      SAVE EVERYTHING
-    */
-
-    function saveMemory() {
-
-      localStorage.setItem(
-        "lightSpeedMemory",
-        JSON.stringify(messages)
-      );
-
-      localStorage.setItem(
-        "lightSpeedFacts",
-        JSON.stringify(savedFacts)
-      );
-
-    }
-
-
-    /*
-      ---------------------------------------
-      FIND FACTS IN USER MESSAGES
-      ---------------------------------------
-    */
-
-    function rememberFact(text) {
-
-      const lower =
-        text.toLowerCase().trim();
-
-
-      /*
-        Example:
-
-        My favorite color is blue
-      */
-
-      const favoriteMatch =
-        lower.match(
-          /^my\s+(.+?)\s+is\s+(.+?)\.?$/
-        );
-
-
-      if (favoriteMatch) {
-
-        const subject =
-          favoriteMatch[1]
-            .trim()
-            .replace(/\?$/, "");
-
-        const value =
-          favoriteMatch[2]
-            .trim()
-            .replace(/[.!?]+$/, "");
-
-
-        if (
-          subject &&
-          value &&
-          subject.length < 60 &&
-          value.length < 100
-        ) {
-
-          savedFacts[subject] =
-            value;
-
-          saveMemory();
-
-        }
-
-      }
-
-    }
-
-
-    /*
-      ---------------------------------------
-      LOOK FOR A SAVED FACT
-      ---------------------------------------
-    */
-
-    function findSavedFact(text) {
-
-      const lower =
-        text.toLowerCase().trim();
-
-
-      /*
-        Example:
-
-        What is my favorite color?
-      */
-
-      const questionMatch =
-        lower.match(
-          /^what(?:'s| is)\s+my\s+(.+?)\??$/
-        );
-
-
-      if (!questionMatch) {
-
-        return null;
-
-      }
-
-
-      const subject =
-        questionMatch[1]
-          .trim();
-
-
-      /*
-        Exact match
-      */
-
-      if (
-        savedFacts[subject]
-      ) {
-
-        return {
-          subject: subject,
-          value: savedFacts[subject]
-        };
-
-      }
-
-
-      /*
-        Try matching saved subjects
-        even if punctuation differs.
-      */
-
-      for (
-        const key of Object.keys(savedFacts)
-      ) {
-
-        if (
-          key.toLowerCase() ===
-          subject.toLowerCase()
-        ) {
-
-          return {
-            subject: key,
-            value: savedFacts[key]
-          };
-
-        }
-
-      }
-
-
-      return null;
-
-    }
-
-
-    /*
-      ---------------------------------------
+      =====================================
       PAGE ELEMENTS
-      ---------------------------------------
+      =====================================
     */
 
     const chat =
@@ -398,16 +248,36 @@
 
 
     /*
-      ---------------------------------------
+      =====================================
+      SAVE MEMORY
+      =====================================
+    */
+
+    function saveMemory() {
+
+      localStorage.setItem(
+        "lightSpeedMemory",
+        JSON.stringify(messages)
+      );
+
+      localStorage.setItem(
+        "lightSpeedFacts",
+        JSON.stringify(savedFacts)
+      );
+
+    }
+
+
+    /*
+      =====================================
       DISPLAY MESSAGE
-      ---------------------------------------
+      =====================================
     */
 
     function addMessage(sender, text) {
 
       const message =
         document.createElement("div");
-
 
       message.className =
         "message";
@@ -435,9 +305,9 @@
 
 
     /*
-      ---------------------------------------
-      LOAD OLD CHAT
-      ---------------------------------------
+      =====================================
+      SHOW SAVED CHAT IMMEDIATELY
+      =====================================
     */
 
     function loadChat() {
@@ -447,9 +317,7 @@
 
       for (const message of messages) {
 
-        if (
-          message.role === "user"
-        ) {
+        if (message.role === "user") {
 
           addMessage(
             "You",
@@ -459,9 +327,7 @@
         }
 
 
-        if (
-          message.role === "assistant"
-        ) {
+        if (message.role === "assistant") {
 
           addMessage(
             "AI",
@@ -476,9 +342,116 @@
 
 
     /*
-      ---------------------------------------
+      =====================================
+      REMEMBER SIMPLE FACTS
+      =====================================
+    */
+
+    function rememberFact(text) {
+
+      const lower =
+        text.toLowerCase().trim();
+
+
+      const match =
+        lower.match(
+          /^my\s+(.+?)\s+is\s+(.+?)\.?$/
+        );
+
+
+      if (!match) {
+
+        return;
+
+      }
+
+
+      const subject =
+        match[1]
+          .trim()
+          .replace(/[.!?]+$/, "");
+
+
+      const value =
+        match[2]
+          .trim()
+          .replace(/[.!?]+$/, "");
+
+
+      if (
+        subject.length > 0 &&
+        subject.length < 60 &&
+        value.length > 0 &&
+        value.length < 100
+      ) {
+
+        savedFacts[subject] =
+          value;
+
+        saveMemory();
+
+      }
+
+    }
+
+
+    /*
+      =====================================
+      FIND SAVED FACT
+      =====================================
+    */
+
+    function findSavedFact(text) {
+
+      const lower =
+        text.toLowerCase().trim();
+
+
+      const match =
+        lower.match(
+          /^what(?:'s| is)\s+my\s+(.+?)\??$/
+        );
+
+
+      if (!match) {
+
+        return null;
+
+      }
+
+
+      const subject =
+        match[1].trim();
+
+
+      for (
+        const key of Object.keys(savedFacts)
+      ) {
+
+        if (
+          key.toLowerCase() ===
+          subject.toLowerCase()
+        ) {
+
+          return {
+            subject: key,
+            value: savedFacts[key]
+          };
+
+        }
+
+      }
+
+
+      return null;
+
+    }
+
+
+    /*
+      =====================================
       CLEAR MEMORY
-      ---------------------------------------
+      =====================================
     */
 
     clearMemory.addEventListener(
@@ -510,8 +483,17 @@
         setTimeout(
           function() {
 
-            status.textContent =
-              "I'm online! ⚡";
+            if (generator) {
+
+              status.textContent =
+                "I'm online! ⚡";
+
+            } else {
+
+              status.textContent =
+                "Starting Light Speed Future...";
+
+            }
 
           },
           1500
@@ -522,9 +504,9 @@
 
 
     /*
-      ---------------------------------------
-      LOAD AI
-      ---------------------------------------
+      =====================================
+      LOAD AI IN BACKGROUND
+      =====================================
     */
 
     async function loadAI() {
@@ -532,7 +514,7 @@
       try {
 
         status.textContent =
-          "Loading AI...";
+          "AI is loading in the background...";
 
 
         generator =
@@ -546,7 +528,14 @@
           "I'm online! ⚡";
 
 
-        loadChat();
+        input.disabled = false;
+
+        sendButton.disabled = false;
+
+        sendButton.textContent = "Send";
+
+
+        input.focus();
 
 
       } catch (error) {
@@ -557,15 +546,18 @@
         status.textContent =
           "AI failed to load.";
 
+        sendButton.textContent =
+          "Retry";
+
       }
 
     }
 
 
     /*
-      ---------------------------------------
+      =====================================
       ASK AI
-      ---------------------------------------
+      =====================================
     */
 
     async function askAI() {
@@ -595,13 +587,6 @@
 
 
       /*
-        REMEMBER FACTS
-      */
-
-      rememberFact(text);
-
-
-      /*
         SAVE USER MESSAGE
       */
 
@@ -614,15 +599,15 @@
       });
 
 
+      rememberFact(text);
+
       saveMemory();
 
 
       try {
 
         /*
-          -----------------------------------
-          CHECK SAVED MEMORY FIRST
-          -----------------------------------
+          CHECK MEMORY FIRST
         */
 
         const savedFact =
@@ -656,6 +641,7 @@
           sendButton.disabled =
             false;
 
+
           input.focus();
 
           return;
@@ -664,10 +650,7 @@
 
 
         /*
-          -----------------------------------
-          IF THERE IS NO SAVED FACT,
-          USE THE AI MODEL
-          -----------------------------------
+          OTHERWISE USE QWEN
         */
 
         const prompt =
@@ -750,10 +733,6 @@
         }
 
 
-        /*
-          SAVE AI RESPONSE
-        */
-
         messages.push({
 
           role: "assistant",
@@ -795,7 +774,9 @@
 
 
     /*
-      SEND BUTTON
+      =====================================
+      BUTTON
+      =====================================
     */
 
     sendButton.addEventListener(
@@ -805,7 +786,9 @@
 
 
     /*
+      =====================================
       ENTER KEY
+      =====================================
     */
 
     input.addEventListener(
@@ -825,8 +808,14 @@
 
 
     /*
-      START
+      =====================================
+      IMPORTANT:
+      SHOW MEMORY FIRST
+      THEN LOAD AI
+      =====================================
     */
+
+    loadChat();
 
     loadAI();
 
