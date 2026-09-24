@@ -215,10 +215,10 @@ async function askAI() {
   "Answer:";
 
     const result = await generator(prompt, {
-      max_new_tokens: 80,
-      temperature: 0.7,
-      do_sample: true
-    });
+  max_new_tokens: 40,
+  temperature: 0.7,
+  do_sample: true
+});
 
   let answer = result[0].generated_text;
 
