@@ -3,84 +3,88 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Light Speed Future 2.0 ⚡</title>
+
+  <title>Light Speed Future 2.0</title>
 
   <style>
     body {
       margin: 0;
       font-family: Arial, sans-serif;
-      background: #111;
+      background: #0b0b0f;
       color: white;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
     }
 
-    .app {
+    .container {
+      width: 100%;
       max-width: 800px;
-      margin: auto;
-      padding: 20px;
+      padding: 30px 20px;
+      box-sizing: border-box;
     }
 
     h1 {
       text-align: center;
+      margin-bottom: 10px;
     }
 
     #status {
       text-align: center;
-      color: #aaa;
-      margin: 10px;
+      color: #8cff8c;
+      margin-bottom: 20px;
     }
 
     #chat {
-      height: 60vh;
+      min-height: 400px;
+      max-height: 60vh;
       overflow-y: auto;
-      background: #181818;
+      border: 1px solid #333;
       border-radius: 12px;
       padding: 15px;
+      background: #15151c;
+      margin-bottom: 15px;
     }
 
     .message {
-      padding: 12px;
-      margin: 10px 0;
-      border-radius: 10px;
-      white-space: pre-wrap;
+      margin-bottom: 15px;
+      line-height: 1.5;
     }
 
     .user {
-      background: #292929;
+      color: #6db7ff;
     }
 
     .ai {
-      background: #202020;
+      color: #8cff8c;
     }
 
-    .controls {
+    .input-area {
       display: flex;
-      gap: 8px;
-      margin-top: 12px;
+      gap: 10px;
     }
 
-    #question {
+    #userInput {
       flex: 1;
       padding: 14px;
       border-radius: 10px;
       border: 1px solid #444;
-      background: #181818;
+      background: #111118;
       color: white;
       font-size: 16px;
     }
 
-    #send {
-      padding: 14px 22px;
-      border: 0;
+    button {
+      padding: 14px 20px;
+      border: none;
       border-radius: 10px;
-      cursor: pointer;
+      background: #ffffff;
+      color: #000000;
       font-weight: bold;
+      cursor: pointer;
     }
 
-    #send:active {
-      transform: scale(0.96);
-    }
-
-    #send:disabled {
+    button:disabled {
       opacity: 0.5;
       cursor: not-allowed;
     }
@@ -89,256 +93,256 @@
 
 <body>
 
-<div class="app">
+  <div class="container">
 
-  <h1>Light Speed Future 2.0 ⚡</h1>
+    <h1>Light Speed Future 2.0 ⚡</h1>
 
-  <div id="status">Starting AI...</div>
+    <div id="status">Loading AI...</div>
 
-  <div id="chat"></div>
+    <div id="chat"></div>
 
-  <div class="controls">
+    <div class="input-area">
+      <input
+        id="userInput"
+        type="text"
+        placeholder="Ask Light Speed Future something..."
+      >
 
-    <input
-      id="question"
-      type="text"
-      placeholder="Ask Light Speed Future..."
-      autocomplete="off"
-    >
-
-    <button id="send" type="button">Send</button>
+      <button id="sendButton">Send</button>
+    </div>
 
   </div>
 
-</div>
+  <script type="module">
 
-<script type="module">
+    import { pipeline } from
+      "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.2";
 
-import { pipeline } from
-"https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.2";
+    let generator = null;
 
-const question = document.getElementById("question");
-const send = document.getElementById("send");
-const chat = document.getElementById("chat");
-const status = document.getElementById("status");
+    /*
+      This array is Light Speed Future's conversation memory.
 
-let generator = null;
-let loading = true;
-let thinking = false;
+      Every user message and every AI answer is saved here.
+    */
+    const messages = [
+      {
+        role: "system",
+        content:
+          "You are Light Speed Future, a personal AI assistant. " +
+          "You remember information the user has told you earlier in the conversation. " +
+          "Use the previous messages to answer questions about the user. " +
+          "If the user says their name is Z and later asks what their name is, answer Z. " +
+          "Answer the user's actual question directly. " +
+          "For simple questions, use one short sentence. " +
+          "Do not repeat the question. " +
+          "Do not ask what the user thinks."
+      }
+    ];
 
-const messages = [
-  {
-    role: "system",
-    content:
-      "You are Light Speed Future. " +
-      "Answer every question with the direct answer first. " +
-      "For simple questions, use ONE short sentence. " +
-      "Do not give lists unless the user asks for a list. " +
-      "Do not give introductions. " +
-      "Do not ask what the user thinks. " +
-      "Do not repeat the question."
-  }
-];
+    const chat = document.getElementById("chat");
+    const status = document.getElementById("status");
+    const input = document.getElementById("userInput");
+    const sendButton = document.getElementById("sendButton");
 
-function addMessage(name, text, type) {
 
-  const div = document.createElement("div");
+    function addMessage(sender, text) {
 
-  div.className = "message " + type;
+      const message = document.createElement("div");
 
-  div.textContent = name + ": " + text;
+      message.className = "message";
 
-  chat.appendChild(div);
+      if (sender === "You") {
+        message.innerHTML =
+          `<strong class="user">You:</strong> ${text}`;
+      } else {
+        message.innerHTML =
+          `<strong class="ai">Light Speed Future:</strong> ${text}`;
+      }
 
-  chat.scrollTop = chat.scrollHeight;
-}
+      chat.appendChild(message);
 
-async function startAI() {
+      chat.scrollTop = chat.scrollHeight;
+    }
 
-  try {
 
-    status.textContent =
-      "Loading AI... first startup may take a little while.";
+    async function loadAI() {
 
-    generator = await pipeline(
-      "text-generation",
-      "onnx-community/Qwen2.5-0.5B-Instruct"
+      try {
+
+        status.textContent = "Loading AI...";
+
+        generator = await pipeline(
+          "text-generation",
+          "onnx-community/Qwen2.5-0.5B-Instruct"
+        );
+
+        status.textContent = "I'm online! ⚡";
+
+      } catch (error) {
+
+        console.error(error);
+
+        status.textContent = "AI failed to load.";
+
+      }
+    }
+
+
+    async function askAI() {
+
+      const text = input.value.trim();
+
+      if (!text || !generator) {
+        return;
+      }
+
+      input.value = "";
+
+      sendButton.disabled = true;
+
+      addMessage("You", text);
+
+      /*
+        Save the user's message to memory.
+      */
+      messages.push({
+        role: "user",
+        content: text
+      });
+
+
+      try {
+
+        /*
+          Give the AI the ENTIRE conversation history.
+        */
+        const prompt =
+          generator.tokenizer.apply_chat_template(
+            messages,
+            {
+              tokenize: false,
+              add_generation_prompt: true
+            }
+          );
+
+
+        const result = await generator(prompt, {
+
+          max_new_tokens: 40,
+
+          temperature: 0.1,
+
+          do_sample: true,
+
+          return_full_text: false
+
+        });
+
+
+        let answer = result[0].generated_text;
+
+
+        if (Array.isArray(answer)) {
+
+          answer =
+            answer[answer.length - 1]?.content || "";
+
+        }
+
+
+        if (typeof answer !== "string") {
+
+          answer = String(answer || "");
+
+        }
+
+
+        answer = answer.trim();
+
+
+        answer = answer
+          .replace(/<\|im_start\|>/g, "")
+          .replace(/<\|im_end\|>/g, "")
+          .replace(/<\|endoftext\|>/g, "")
+          .trim();
+
+
+        if (answer.includes("A:")) {
+
+          answer =
+            answer.split("A:").pop().trim();
+
+        }
+
+
+        /*
+          Remove accidental question repetition.
+        */
+        if (
+          answer.toLowerCase().startsWith(text.toLowerCase())
+        ) {
+
+          answer =
+            answer.substring(text.length).trim();
+
+        }
+
+
+        /*
+          Save the AI's answer to conversation memory.
+        */
+        messages.push({
+          role: "assistant",
+          content: answer
+        });
+
+
+        addMessage("AI", answer);
+
+
+      } catch (error) {
+
+        console.error(error);
+
+        addMessage(
+          "AI",
+          "I couldn't generate an answer. Please try again."
+        );
+
+      }
+
+
+      sendButton.disabled = false;
+
+      input.focus();
+
+    }
+
+
+    sendButton.addEventListener(
+      "click",
+      askAI
     );
 
-    loading = false;
 
-    status.textContent =
-      "Light Speed Future is online! ⚡";
+    input.addEventListener(
+      "keydown",
+      function(event) {
 
-    question.disabled = false;
-    send.disabled = false;
+        if (event.key === "Enter") {
 
-    question.focus();
+          askAI();
 
-  } catch (error) {
+        }
 
-    console.error(error);
-
-    loading = false;
-
-    status.textContent =
-      "AI failed to load. Refresh the page and try again.";
-
-  }
-}
-
-async function askAI() {
-
-  if (loading || thinking) return;
-
-  const text = question.value.trim();
-
-  if (!text) return;
-
-  thinking = true;
-
-  send.disabled = true;
-  question.disabled = true;
-  question.value = "";
-
-  addMessage("You", text, "user");
-
-  status.textContent = "Thinking... ⚡";
-
-  messages.push({
-    role: "user",
-    content: text
-  });
-
-  try {
-
-    const prompt = generator.tokenizer.apply_chat_template(
-      messages,
-      {
-        tokenize: false,
-        add_generation_prompt: true
       }
     );
 
-    const result = await generator(prompt, {
-      max_new_tokens: 30,
-      temperature: 0.1,
-      do_sample: true,
-      return_full_text: false
-    });
 
-    let answer = result[0].generated_text;
+    loadAI();
 
-    if (Array.isArray(answer)) {
-
-      answer =
-        answer[answer.length - 1]?.content || "";
-
-    }
-
-    if (typeof answer !== "string") {
-
-      answer = String(answer || "");
-
-    }
-
-    answer = answer.trim();
-
-    if (answer.includes("A:")) {
-      answer = answer.split("A:").pop().trim();
-    }
-
-    answer = answer
-      .replace(/<\|im_start\|>/g, "")
-      .replace(/<\|im_end\|>/g, "")
-      .replace(/<\|endoftext\|>/g, "")
-      .trim();
-
-    if (answer.startsWith("?")) {
-      answer = answer.substring(1).trim();
-    }
-
-    if (answer.startsWith(":")) {
-      answer = answer.substring(1).trim();
-    }
-
-    /*
-      For simple questions, keep only the first
-      complete sentence.
-    */
-
-    const sentenceMatch =
-      answer.match(/^(.+?[.!?])(?:\s|$)/);
-
-    if (sentenceMatch) {
-      answer = sentenceMatch[1].trim();
-    }
-
-    if (!answer) {
-
-      answer =
-        "I couldn't generate an answer. Please try again.";
-
-    }
-
-    addMessage(
-      "Light Speed Future",
-      answer,
-      "ai"
-    );
-
-    messages.push({
-      role: "assistant",
-      content: answer
-    });
-
-    status.textContent =
-      "Light Speed Future is online! ⚡";
-
-  } catch (error) {
-
-    console.error(error);
-
-    addMessage(
-      "Light Speed Future",
-      "I couldn't generate an answer. Please try again.",
-      "ai"
-    );
-
-    status.textContent =
-      "Ready — try your question again.";
-
-  }
-
-  thinking = false;
-
-  send.disabled = false;
-  question.disabled = false;
-
-  question.focus();
-
-}
-
-send.addEventListener("click", askAI);
-
-question.addEventListener("keydown", function(event) {
-
-  if (event.key === "Enter") {
-
-    event.preventDefault();
-
-    askAI();
-
-  }
-
-});
-
-question.disabled = true;
-send.disabled = true;
-
-startAI();
-
-</script>
+  </script>
 
 </body>
 </html>
