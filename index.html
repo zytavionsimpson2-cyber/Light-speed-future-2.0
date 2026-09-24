@@ -59,6 +59,12 @@
       color: #8cff8c;
     }
 
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+
     .input-area {
       display: flex;
       gap: 10px;
@@ -84,6 +90,12 @@
       cursor: pointer;
     }
 
+    #clearMemory {
+      background: #22222b;
+      color: white;
+      border: 1px solid #444;
+    }
+
     button:disabled {
       opacity: 0.5;
       cursor: not-allowed;
@@ -100,6 +112,14 @@
     <div id="status">Loading AI...</div>
 
     <div id="chat"></div>
+
+    <div class="controls">
+
+      <button id="clearMemory">
+        🗑️ Clear Memory
+      </button>
+
+    </div>
 
     <div class="input-area">
 
@@ -153,28 +173,55 @@
 
 
     /*
-      If there is no saved memory,
-      create Light Speed Future's system instructions.
+      CREATE SYSTEM INSTRUCTIONS
+      IF THERE IS NO MEMORY
     */
 
-    if (!Array.isArray(messages) || messages.length === 0) {
+    function createNewMemory() {
 
-      messages = [
+      return [
 
         {
           role: "system",
 
           content:
             "You are Light Speed Future, a personal AI assistant. " +
-            "Remember information the user has told you earlier. " +
-            "Use previous messages to answer questions about the user. " +
+
+            "Only use facts directly provided by the user " +
+            "or clearly stated in the conversation. " +
+
+            "Never invent personal information. " +
+
+            "Never guess the user's name, birthday, age, " +
+            "location, favorite things, family, or other facts. " +
+
+            "If the user says their favorite color is blue, " +
+            "remember that their favorite color is blue. " +
+
+            "If the user later asks their favorite color, " +
+            "answer that their favorite color is blue. " +
+
+            "Do not create facts that were never provided. " +
+
             "Answer the actual question directly. " +
+
             "For simple questions, use one short sentence. " +
-            "Do not repeat the question. " +
-            "Do not ask what the user thinks."
+
+            "Do not repeat the question."
         }
 
       ];
+
+    }
+
+
+    if (
+      !Array.isArray(messages) ||
+      messages.length === 0
+    ) {
+
+      messages =
+        createNewMemory();
 
     }
 
@@ -195,6 +242,10 @@
       document.getElementById("sendButton");
 
 
+    const clearMemory =
+      document.getElementById("clearMemory");
+
+
     /*
       SAVE MEMORY
     */
@@ -205,39 +256,6 @@
         "lightSpeedMemory",
         JSON.stringify(messages)
       );
-
-    }
-
-
-    /*
-      DISPLAY OLD CONVERSATION
-    */
-
-    function loadChat() {
-
-      chat.innerHTML = "";
-
-      for (const message of messages) {
-
-        if (message.role === "user") {
-
-          addMessage(
-            "You",
-            message.content
-          );
-
-        }
-
-        if (message.role === "assistant") {
-
-          addMessage(
-            "AI",
-            message.content
-          );
-
-        }
-
-      }
 
     }
 
@@ -276,6 +294,79 @@
         chat.scrollHeight;
 
     }
+
+
+    /*
+      DISPLAY SAVED CHAT
+    */
+
+    function loadChat() {
+
+      chat.innerHTML = "";
+
+
+      for (const message of messages) {
+
+        if (message.role === "user") {
+
+          addMessage(
+            "You",
+            message.content
+          );
+
+        }
+
+
+        if (message.role === "assistant") {
+
+          addMessage(
+            "AI",
+            message.content
+          );
+
+        }
+
+      }
+
+    }
+
+
+    /*
+      CLEAR MEMORY BUTTON
+    */
+
+    clearMemory.addEventListener(
+      "click",
+      function() {
+
+        localStorage.removeItem(
+          "lightSpeedMemory"
+        );
+
+
+        messages =
+          createNewMemory();
+
+
+        chat.innerHTML = "";
+
+
+        status.textContent =
+          "Memory cleared! ⚡";
+
+
+        setTimeout(
+          function() {
+
+            status.textContent =
+              "I'm online! ⚡";
+
+          },
+          1500
+        );
+
+      }
+    );
 
 
     /*
@@ -365,7 +456,7 @@
       try {
 
         /*
-          SEND ENTIRE MEMORY
+          SEND THE CONVERSATION
           TO THE AI
         */
 
@@ -386,7 +477,7 @@
 
               max_new_tokens: 40,
 
-              temperature: 0.1,
+              temperature: 0.05,
 
               do_sample: true,
 
@@ -422,6 +513,10 @@
           answer.trim();
 
 
+        /*
+          REMOVE MODEL MARKERS
+        */
+
         answer =
           answer
             .replace(
@@ -438,6 +533,11 @@
             )
             .trim();
 
+
+        /*
+          REMOVE A:
+          IF THE MODEL ADDS IT
+        */
 
         if (answer.includes("A:")) {
 
@@ -494,11 +594,19 @@
     }
 
 
+    /*
+      SEND BUTTON
+    */
+
     sendButton.addEventListener(
       "click",
       askAI
     );
 
+
+    /*
+      ENTER KEY
+    */
 
     input.addEventListener(
       "keydown",
@@ -513,6 +621,10 @@
       }
     );
 
+
+    /*
+      START AI
+    */
 
     loadAI();
 
