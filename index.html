@@ -131,11 +131,12 @@ const messages = [
     role: "system",
     content:
       "You are Light Speed Future. " +
-      "Answer the user's question directly and accurately. " +
-      "For simple questions, give a short answer. " +
-      "Do not ask the user what they think. " +
-      "Do not introduce yourself. " +
-      "Do not add greetings or unnecessary conversation."
+      "Answer every question with the direct answer first. " +
+      "For simple questions, use ONE short sentence. " +
+      "Do not give lists unless the user asks for a list. " +
+      "Do not give introductions. " +
+      "Do not ask what the user thinks. " +
+      "Do not repeat the question."
   }
 ];
 
@@ -220,8 +221,8 @@ async function askAI() {
     );
 
     const result = await generator(prompt, {
-      max_new_tokens: 70,
-      temperature: 0.2,
+      max_new_tokens: 30,
+      temperature: 0.1,
       do_sample: true,
       return_full_text: false
     });
@@ -244,10 +245,7 @@ async function askAI() {
     answer = answer.trim();
 
     if (answer.includes("A:")) {
-
-      answer =
-        answer.split("A:").pop().trim();
-
+      answer = answer.split("A:").pop().trim();
     }
 
     answer = answer
@@ -262,6 +260,18 @@ async function askAI() {
 
     if (answer.startsWith(":")) {
       answer = answer.substring(1).trim();
+    }
+
+    /*
+      For simple questions, keep only the first
+      complete sentence.
+    */
+
+    const sentenceMatch =
+      answer.match(/^(.+?[.!?])(?:\s|$)/);
+
+    if (sentenceMatch) {
+      answer = sentenceMatch[1].trim();
     }
 
     if (!answer) {
