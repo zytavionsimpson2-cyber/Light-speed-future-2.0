@@ -130,8 +130,12 @@ const messages = [
   {
     role: "system",
     content:
-      "You are Light Speed Future, a helpful AI assistant. " +
-      "Answer the user's questions directly, accurately, and clearly."
+      "You are Light Speed Future, a helpful personal AI assistant. " +
+      "Answer questions directly and accurately. " +
+      "Keep simple questions short and clear. " +
+      "Do not repeat the instructions. " +
+      "Do not talk about yourself unless asked. " +
+      "If you do not know something, say you do not know."
   }
 ];
 
@@ -216,8 +220,8 @@ async function askAI() {
     );
 
     const result = await generator(prompt, {
-      max_new_tokens: 80,
-      temperature: 0.7,
+      max_new_tokens: 40,
+      temperature: 0.3,
       do_sample: true
     });
 
@@ -226,11 +230,6 @@ async function askAI() {
     if (typeof answer !== "string") {
       answer = String(answer || "");
     }
-
-    /*
-      Remove the prompt if the model returned it
-      together with the answer.
-    */
 
     if (answer.includes("<|im_start|>assistant")) {
       answer = answer.split("<|im_start|>assistant").pop();
@@ -241,6 +240,22 @@ async function askAI() {
     }
 
     answer = answer.trim();
+
+    if (answer.startsWith("?")) {
+      answer = answer.substring(1).trim();
+    }
+
+    if (answer.startsWith(":")) {
+      answer = answer.substring(1).trim();
+    }
+
+    if (answer.startsWith("Answer:")) {
+      answer = answer.substring(7).trim();
+    }
+
+    if (answer.startsWith("Assistant:")) {
+      answer = answer.substring(10).trim();
+    }
 
     if (!answer) {
       answer =
