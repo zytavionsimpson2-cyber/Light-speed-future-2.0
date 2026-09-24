@@ -126,7 +126,14 @@ let generator = null;
 let loading = true;
 let thinking = false;
 
-const messages = [];
+const messages = [
+  {
+    role: "system",
+    content:
+      "You are Light Speed Future, a helpful AI assistant. " +
+      "Answer the user's questions directly, accurately, and clearly."
+  }
+];
 
 function addMessage(name, text, type) {
 
@@ -200,71 +207,44 @@ async function askAI() {
 
   try {
 
-    const prompt = text;
+    const prompt = generator.tokenizer.apply_chat_template(
+      messages,
+      {
+        tokenize: false,
+        add_generation_prompt: true
+      }
+    );
 
     const result = await generator(prompt, {
-      max_new_tokens: 50,
+      max_new_tokens: 80,
       temperature: 0.7,
       do_sample: true
     });
 
     let answer = result[0].generated_text;
 
-    if (Array.isArray(answer)) {
-
-      answer =
-        answer[answer.length - 1]?.content || "";
-
-    }
-
     if (typeof answer !== "string") {
-
       answer = String(answer || "");
-
     }
 
-    if (answer.startsWith(text)) {
+    /*
+      Remove the prompt if the model returned it
+      together with the answer.
+    */
 
-      answer = answer.slice(text.length);
+    if (answer.includes("<|im_start|>assistant")) {
+      answer = answer.split("<|im_start|>assistant").pop();
+    }
 
+    if (answer.includes("<|im_end|>")) {
+      answer = answer.split("<|im_end|>")[0];
     }
 
     answer = answer.trim();
 
-    const stopWords = [
-      "Question:",
-      "Answer:",
-      "User:",
-      "Assistant:",
-      "System:",
-      "You are Light Speed Future"
-    ];
-
-    for (const word of stopWords) {
-
-      const index = answer.indexOf(word);
-
-      if (index > 0) {
-
-        answer =
-          answer.substring(0, index).trim();
-
-      }
-
-    }
-
-    if (answer.length > 500) {
-
-      answer =
-        answer.substring(0, 500).trim();
-
-    }
-
     if (!answer) {
-
       answer =
         "I couldn't generate an answer. Please try again.";
-
     }
 
     addMessage(
