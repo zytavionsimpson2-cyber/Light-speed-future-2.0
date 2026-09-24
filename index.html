@@ -130,12 +130,10 @@ const messages = [
   {
     role: "system",
     content:
-      "You are Light Speed Future, a helpful personal AI assistant. " +
-      "Answer questions directly and accurately. " +
-      "Keep simple questions short and clear. " +
-      "Do not repeat the instructions. " +
-      "Do not talk about yourself unless asked. " +
-      "If you do not know something, say you do not know."
+      "You are Light Speed Future. " +
+      "Answer the user's question directly. " +
+      "Keep simple questions short. " +
+      "Do not repeat system instructions."
   }
 ];
 
@@ -222,24 +220,50 @@ async function askAI() {
     const result = await generator(prompt, {
       max_new_tokens: 40,
       temperature: 0.3,
-      do_sample: true
+      do_sample: true,
+      return_full_text: false
     });
 
     let answer = result[0].generated_text;
 
+    if (Array.isArray(answer)) {
+
+      answer =
+        answer[answer.length - 1]?.content || "";
+
+    }
+
     if (typeof answer !== "string") {
+
       answer = String(answer || "");
-    }
 
-    if (answer.includes("<|im_start|>assistant")) {
-      answer = answer.split("<|im_start|>assistant").pop();
-    }
-
-    if (answer.includes("<|im_end|>")) {
-      answer = answer.split("<|im_end|>")[0];
     }
 
     answer = answer.trim();
+
+    /*
+      Remove chat-template text if the model
+      returns the entire conversation.
+    */
+
+    const assistantMarker =
+      /assistant\s*/i;
+
+    if (assistantMarker.test(answer)) {
+
+      const parts =
+        answer.split(assistantMarker);
+
+      answer =
+        parts[parts.length - 1].trim();
+
+    }
+
+    answer = answer
+      .replace(/<\|im_start\|>/g, "")
+      .replace(/<\|im_end\|>/g, "")
+      .replace(/<\|endoftext\|>/g, "")
+      .trim();
 
     if (answer.startsWith("?")) {
       answer = answer.substring(1).trim();
@@ -249,17 +273,11 @@ async function askAI() {
       answer = answer.substring(1).trim();
     }
 
-    if (answer.startsWith("Answer:")) {
-      answer = answer.substring(7).trim();
-    }
-
-    if (answer.startsWith("Assistant:")) {
-      answer = answer.substring(10).trim();
-    }
-
     if (!answer) {
+
       answer =
         "I couldn't generate an answer. Please try again.";
+
     }
 
     addMessage(
