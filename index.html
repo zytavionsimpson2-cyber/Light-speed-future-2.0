@@ -1,18 +1,23 @@
+```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>Light Speed Future 2.0</title>
+  <title>Light Speed Future 2.0 ⚡</title>
 
   <style>
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       margin: 0;
-      font-family: Arial, sans-serif;
-      background: #0b0b0f;
-      color: white;
       min-height: 100vh;
+      background: #050505;
+      color: white;
+      font-family: Arial, sans-serif;
       display: flex;
       justify-content: center;
     }
@@ -20,83 +25,98 @@
     .container {
       width: 100%;
       max-width: 800px;
-      padding: 30px 20px;
-      box-sizing: border-box;
+      padding: 25px 15px;
     }
 
     h1 {
       text-align: center;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
+      font-size: 30px;
     }
 
     #status {
       text-align: center;
-      color: #8cff8c;
+      color: #aaa;
       margin-bottom: 20px;
+      font-size: 14px;
     }
 
     #chat {
-      min-height: 400px;
+      min-height: 350px;
       max-height: 60vh;
       overflow-y: auto;
+      background: #111;
       border: 1px solid #333;
       border-radius: 12px;
       padding: 15px;
-      background: #15151c;
       margin-bottom: 15px;
     }
 
     .message {
       margin-bottom: 15px;
       line-height: 1.5;
+      white-space: pre-wrap;
+      word-wrap: break-word;
     }
 
     .user {
-      color: #6db7ff;
+      color: #4da6ff;
     }
 
     .ai {
-      color: #8cff8c;
+      color: #00ff99;
     }
 
     .controls {
-      margin-bottom: 15px;
-    }
-
-    .input-area {
       display: flex;
-      gap: 10px;
+      gap: 8px;
     }
 
-    #userInput {
+    #input {
       flex: 1;
-      padding: 14px;
-      border-radius: 10px;
+      padding: 13px;
+      border-radius: 8px;
       border: 1px solid #444;
-      background: #111118;
+      background: #1b1b1b;
       color: white;
       font-size: 16px;
+      outline: none;
     }
 
     button {
-      padding: 14px 20px;
+      padding: 13px 17px;
       border: none;
-      border-radius: 10px;
-      background: white;
+      border-radius: 8px;
+      background: #00cc88;
       color: black;
       font-weight: bold;
       cursor: pointer;
     }
 
-    #clearMemory {
-      background: #22222b;
-      color: white;
-      border: 1px solid #444;
+    button:hover {
+      background: #00ee99;
     }
 
-    button:disabled {
+    button:disabled,
+    #input:disabled {
       opacity: 0.5;
       cursor: not-allowed;
+    }
+
+    #clearMemory {
+      display: block;
+      margin: 12px auto 0;
+      background: #333;
+      color: white;
+    }
+
+    #clearMemory:hover {
+      background: #444;
+    }
+
+    .loading {
+      color: #aaa;
+      font-style: italic;
     }
   </style>
 </head>
@@ -107,356 +127,611 @@
 
     <h1>Light Speed Future 2.0 ⚡</h1>
 
-    <div id="status">Starting Light Speed Future...</div>
+    <div id="status">
+      Starting Light Speed Future...
+    </div>
 
     <div id="chat"></div>
 
     <div class="controls">
-      <button id="clearMemory">🗑️ Clear Memory</button>
-    </div>
-
-    <div class="input-area">
-
       <input
-        id="userInput"
+        id="input"
         type="text"
-        placeholder="Ask Light Speed Future something..."
-        disabled
+        placeholder="Ask Light Speed Future..."
+        autocomplete="off"
       >
 
-      <button id="sendButton" disabled>
-        Loading...
+      <button id="sendButton">
+        Send
       </button>
-
     </div>
+
+    <button id="clearMemory">
+      🗑️ Clear Memory
+    </button>
 
   </div>
 
-
   <script type="module">
 
-    import { pipeline } from
-      "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.2";
+    import {
+      pipeline,
+      TextStreamer
+    } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.2";
 
+    // =========================================================
+    // SETTINGS
+    // =========================================================
 
-    let generator = null;
+    const MODEL = "onnx-community/Qwen2.5-0.5B-Instruct";
 
+    // Lower number = faster response
+    const MAX_TOKENS = 48;
 
-    /*
-      =====================================
-      MEMORY
-      =====================================
-    */
+    // =========================================================
+    // PAGE ELEMENTS
+    // =========================================================
 
-    let messages = [];
+    const chat = document.getElementById("chat");
+    const input = document.getElementById("input");
+    const sendButton = document.getElementById("sendButton");
+    const clearMemoryButton = document.getElementById("clearMemory");
+    const status = document.getElementById("status");
+
+    // =========================================================
+    // MEMORY
+    // =========================================================
+
+    let messages = [
+      {
+        role: "system",
+        content:
+          "You are Light Speed Future 2.0, a helpful personal AI assistant. " +
+          "Answer directly, clearly, and briefly. " +
+          "Do not ramble. Do not repeat yourself. " +
+          "Give the answer first. Use simple explanations when needed."
+      }
+    ];
+
     let savedFacts = {};
 
+    // Load conversation memory
+    try {
+      const storedMemory =
+        JSON.parse(localStorage.getItem("lightSpeedMemory"));
 
-    function createNewMemory() {
-
-      return [
-        {
-          role: "system",
-
-          content:
-            "You are Light Speed Future, a personal AI assistant. " +
-            "Only use facts directly provided by the user " +
-            "or clearly stated in the conversation. " +
-            "Never invent personal information. " +
-            "Answer questions directly and clearly. " +
-            "For simple questions, use one short sentence."
-        }
-      ];
-
-    }
-
-
-    /*
-      LOAD CONVERSATION MEMORY
-    */
-
-    const savedMemory =
-      localStorage.getItem("lightSpeedMemory");
-
-
-    if (savedMemory) {
-
-      try {
-
-        messages =
-          JSON.parse(savedMemory);
-
-      } catch (error) {
-
-        messages =
-          createNewMemory();
-
+      if (Array.isArray(storedMemory) && storedMemory.length > 0) {
+        messages = storedMemory;
       }
-
-    } else {
-
-      messages =
-        createNewMemory();
-
+    } catch (error) {
+      console.log("Memory could not be loaded.");
     }
 
+    // Load saved facts
+    try {
+      const storedFacts =
+        JSON.parse(localStorage.getItem("lightSpeedFacts"));
 
-    /*
-      LOAD SAVED FACTS
-    */
-
-    const storedFacts =
-      localStorage.getItem("lightSpeedFacts");
-
-
-    if (storedFacts) {
-
-      try {
-
-        savedFacts =
-          JSON.parse(storedFacts);
-
-      } catch (error) {
-
-        savedFacts = {};
-
+      if (storedFacts && typeof storedFacts === "object") {
+        savedFacts = storedFacts;
       }
-
+    } catch (error) {
+      console.log("Saved facts could not be loaded.");
     }
 
+    // =========================================================
+    // STATE
+    // =========================================================
 
-    /*
-      =====================================
-      PAGE ELEMENTS
-      =====================================
-    */
+    let generator = null;
+    let modelReady = false;
+    let isGenerating = false;
 
-    const chat =
-      document.getElementById("chat");
+    // =========================================================
+    // DISPLAY MESSAGE
+    // =========================================================
 
-    const status =
-      document.getElementById("status");
+    function addMessage(type, text) {
 
-    const input =
-      document.getElementById("userInput");
+      const message = document.createElement("div");
+      message.className = "message";
 
-    const sendButton =
-      document.getElementById("sendButton");
-
-    const clearMemory =
-      document.getElementById("clearMemory");
-
-
-    /*
-      =====================================
-      SAVE MEMORY
-      =====================================
-    */
-
-    function saveMemory() {
-
-      localStorage.setItem(
-        "lightSpeedMemory",
-        JSON.stringify(messages)
-      );
-
-      localStorage.setItem(
-        "lightSpeedFacts",
-        JSON.stringify(savedFacts)
-      );
-
-    }
-
-
-    /*
-      =====================================
-      DISPLAY MESSAGE
-      =====================================
-    */
-
-    function addMessage(sender, text) {
-
-      const message =
-        document.createElement("div");
-
-      message.className =
-        "message";
-
-
-      if (sender === "You") {
-
+      if (type === "User") {
         message.innerHTML =
-          `<strong class="user">You:</strong> ${text}`;
-
+          `<strong class="user">You:</strong> ${escapeHTML(text)}`;
       } else {
-
         message.innerHTML =
-          `<strong class="ai">Light Speed Future:</strong> ${text}`;
-
+          `<strong class="ai">Light Speed Future:</strong> ${escapeHTML(text)}`;
       }
-
 
       chat.appendChild(message);
 
-      chat.scrollTop =
-        chat.scrollHeight;
+      chat.scrollTop = chat.scrollHeight;
 
+      return message;
     }
 
+    // =========================================================
+    // ESCAPE HTML
+    // =========================================================
 
-    /*
-      =====================================
-      SHOW SAVED CHAT IMMEDIATELY
-      =====================================
-    */
+    function escapeHTML(text) {
 
-    function loadChat() {
+      return String(text)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    // =========================================================
+    // SHOW SAVED CONVERSATION
+    // =========================================================
+
+    function showConversation() {
 
       chat.innerHTML = "";
 
+      const visibleMessages =
+        messages.filter(message =>
+          message.role === "user" ||
+          message.role === "assistant"
+        );
 
-      for (const message of messages) {
+      for (const message of visibleMessages) {
 
         if (message.role === "user") {
-
-          addMessage(
-            "You",
-            message.content
-          );
-
+          addMessage("User", message.content);
         }
-
 
         if (message.role === "assistant") {
-
-          addMessage(
-            "AI",
-            message.content
-          );
-
+          addMessage("AI", message.content);
         }
-
       }
-
     }
 
+    // Show chat immediately
+    showConversation();
 
-    /*
-      =====================================
-      REMEMBER SIMPLE FACTS
-      =====================================
-    */
+    // =========================================================
+    // SAVE MEMORY
+    // =========================================================
+
+    function saveMemory() {
+
+      try {
+        localStorage.setItem(
+          "lightSpeedMemory",
+          JSON.stringify(messages)
+        );
+      } catch (error) {
+        console.log("Could not save memory.");
+      }
+    }
+
+    // =========================================================
+    // SAVE FACT
+    // =========================================================
+
+    function saveFacts() {
+
+      try {
+        localStorage.setItem(
+          "lightSpeedFacts",
+          JSON.stringify(savedFacts)
+        );
+      } catch (error) {
+        console.log("Could not save facts.");
+      }
+    }
+
+    // =========================================================
+    // REMEMBER SIMPLE FACTS
+    // =========================================================
 
     function rememberFact(text) {
 
-      const lower =
-        text.toLowerCase().trim();
-
-
-      const match =
-        lower.match(
-          /^my\s+(.+?)\s+is\s+(.+?)\.?$/
-        );
-
+      const match = text.match(
+        /^my\s+(.+?)\s+is\s+(.+)$/i
+      );
 
       if (!match) {
-
-        return;
-
+        return false;
       }
 
+      const key = match[1]
+        .trim()
+        .toLowerCase();
 
-      const subject =
-        match[1]
-          .trim()
-          .replace(/[.!?]+$/, "");
+      const value = match[2]
+        .trim();
 
-
-      const value =
-        match[2]
-          .trim()
-          .replace(/[.!?]+$/, "");
-
-
-      if (
-        subject.length > 0 &&
-        subject.length < 60 &&
-        value.length > 0 &&
-        value.length < 100
-      ) {
-
-        savedFacts[subject] =
-          value;
-
-        saveMemory();
-
+      if (!key || !value) {
+        return false;
       }
 
+      savedFacts[key] = value;
+
+      saveFacts();
+
+      return true;
     }
 
-
-    /*
-      =====================================
-      FIND SAVED FACT
-      =====================================
-    */
+    // =========================================================
+    // FIND SAVED FACT
+    // =========================================================
 
     function findSavedFact(text) {
 
-      const lower =
-        text.toLowerCase().trim();
-
-
-      const match =
-        lower.match(
-          /^what(?:'s| is)\s+my\s+(.+?)\??$/
-        );
-
+      const match = text.match(
+        /^what(?:'s| is)\s+my\s+(.+?)[?!.]*$/i
+      );
 
       if (!match) {
-
         return null;
-
       }
 
+      const key = match[1]
+        .trim()
+        .toLowerCase();
 
-      const subject =
-        match[1].trim();
+      if (savedFacts[key]) {
 
-
-      for (
-        const key of Object.keys(savedFacts)
-      ) {
-
-        if (
-          key.toLowerCase() ===
-          subject.toLowerCase()
-        ) {
-
-          return {
-            subject: key,
-            value: savedFacts[key]
-          };
-
-        }
-
+        return `Your ${key} is ${savedFacts[key]}.`;
       }
-
 
       return null;
-
     }
 
+    // =========================================================
+    // LOAD AI
+    // =========================================================
 
-    /*
-      =====================================
-      CLEAR MEMORY
-      =====================================
-    */
+    async function loadAI() {
 
-    clearMemory.addEventListener(
+      status.textContent =
+        "Loading AI... first load may take a little while.";
+
+      try {
+
+        generator = await pipeline(
+          "text-generation",
+          MODEL,
+          {
+            dtype: "q8"
+          }
+        );
+
+        modelReady = true;
+
+        status.textContent =
+          "AI ready ⚡";
+
+        input.disabled = false;
+        sendButton.disabled = false;
+
+        input.focus();
+
+      } catch (error) {
+
+        console.error(error);
+
+        status.textContent =
+          "AI failed to load. Refresh the page and try again.";
+
+        modelReady = false;
+      }
+    }
+
+    // =========================================================
+    // ASK AI
+    // =========================================================
+
+    async function askAI() {
+
+      if (isGenerating) {
+        return;
+      }
+
+      const text = input.value.trim();
+
+      if (!text) {
+        return;
+      }
+
+      // Prevent duplicate clicks
+      isGenerating = true;
+
+      input.disabled = true;
+      sendButton.disabled = true;
+
+      sendButton.textContent = "Thinking...";
+
+      input.value = "";
+
+      addMessage("User", text);
+
+      // -------------------------------------------------------
+      // SAVE USER MESSAGE
+      // -------------------------------------------------------
+
+      messages.push({
+        role: "user",
+        content: text
+      });
+
+      saveMemory();
+
+      // -------------------------------------------------------
+      // REMEMBER FACT
+      // -------------------------------------------------------
+
+      const remembered =
+        rememberFact(text);
+
+      if (remembered) {
+
+        const answer =
+          "Got it. I'll remember that.";
+
+        addMessage("AI", answer);
+
+        messages.push({
+          role: "assistant",
+          content: answer
+        });
+
+        saveMemory();
+
+        finishGeneration();
+
+        return;
+      }
+
+      // -------------------------------------------------------
+      // CHECK SAVED FACTS BEFORE USING AI
+      // -------------------------------------------------------
+
+      const savedAnswer =
+        findSavedFact(text);
+
+      if (savedAnswer) {
+
+        addMessage("AI", savedAnswer);
+
+        messages.push({
+          role: "assistant",
+          content: savedAnswer
+        });
+
+        saveMemory();
+
+        finishGeneration();
+
+        return;
+      }
+
+      // -------------------------------------------------------
+      // MAKE SURE AI IS READY
+      // -------------------------------------------------------
+
+      if (!modelReady || !generator) {
+
+        const answer =
+          "I'm still loading. Give me a moment, then try again.";
+
+        addMessage("AI", answer);
+
+        messages.push({
+          role: "assistant",
+          content: answer
+        });
+
+        saveMemory();
+
+        finishGeneration();
+
+        return;
+      }
+
+      // -------------------------------------------------------
+      // CREATE AI MESSAGE
+      // -------------------------------------------------------
+
+      const aiMessage =
+        document.createElement("div");
+
+      aiMessage.className = "message";
+
+      aiMessage.innerHTML =
+        `<strong class="ai">Light Speed Future:</strong> <span class="answer"></span>`;
+
+      chat.appendChild(aiMessage);
+
+      chat.scrollTop = chat.scrollHeight;
+
+      const answerElement =
+        aiMessage.querySelector(".answer");
+
+      let answer = "";
+
+      try {
+
+        // -----------------------------------------------------
+        // STREAM RESPONSE
+        // -----------------------------------------------------
+
+        const streamer = new TextStreamer(
+          generator.tokenizer,
+          {
+            skip_prompt: true,
+
+            callback_function:
+              (token) => {
+
+                answer += token;
+
+                answerElement.textContent =
+                  answer;
+
+                chat.scrollTop =
+                  chat.scrollHeight;
+              }
+          }
+        );
+
+        // -----------------------------------------------------
+        // GENERATE
+        // -----------------------------------------------------
+
+        const output =
+          await generator(
+            messages,
+            {
+              max_new_tokens: MAX_TOKENS,
+
+              temperature: 0.1,
+
+              do_sample: false,
+
+              streamer: streamer
+            }
+          );
+
+        // -----------------------------------------------------
+        // FALLBACK IF STREAMING DID NOT RETURN TEXT
+        // -----------------------------------------------------
+
+        if (!answer.trim()) {
+
+          try {
+
+            const generated =
+              output?.[0]?.generated_text;
+
+            if (Array.isArray(generated)) {
+
+              const last =
+                generated[generated.length - 1];
+
+              if (last?.content) {
+                answer = last.content;
+              }
+
+            } else if (
+              typeof generated === "string"
+            ) {
+
+              answer = generated;
+            }
+
+          } catch (error) {
+            console.log(
+              "Could not read fallback response."
+            );
+          }
+        }
+
+        // -----------------------------------------------------
+        // CLEAN ANSWER
+        // -----------------------------------------------------
+
+        answer = String(answer || "").trim();
+
+        if (!answer) {
+
+          answer =
+            "I couldn't generate an answer. Try again.";
+        }
+
+        answerElement.textContent =
+          answer;
+
+        // -----------------------------------------------------
+        // SAVE AI RESPONSE
+        // -----------------------------------------------------
+
+        messages.push({
+          role: "assistant",
+          content: answer
+        });
+
+        saveMemory();
+
+      } catch (error) {
+
+        console.error(error);
+
+        answer =
+          "Something went wrong while generating the answer.";
+
+        answerElement.textContent =
+          answer;
+
+      } finally {
+
+        finishGeneration();
+      }
+    }
+
+    // =========================================================
+    // UNLOCK AFTER RESPONSE
+    // =========================================================
+
+    function finishGeneration() {
+
+      isGenerating = false;
+
+      input.disabled = false;
+      sendButton.disabled = false;
+
+      sendButton.textContent = "Send";
+
+      input.focus();
+
+      status.textContent =
+        modelReady
+          ? "AI ready ⚡"
+          : "AI loading...";
+    }
+
+    // =========================================================
+    // SEND BUTTON
+    // =========================================================
+
+    sendButton.addEventListener(
       "click",
-      function() {
+      askAI
+    );
+
+    // =========================================================
+    // ENTER KEY
+    // =========================================================
+
+    input.addEventListener(
+      "keydown",
+      (event) => {
+
+        if (
+          event.key === "Enter" &&
+          !event.shiftKey
+        ) {
+
+          event.preventDefault();
+
+          askAI();
+        }
+      }
+    );
+
+    // =========================================================
+    // CLEAR MEMORY
+    // =========================================================
+
+    clearMemoryButton.addEventListener(
+      "click",
+      () => {
 
         localStorage.removeItem(
           "lightSpeedMemory"
@@ -466,356 +741,34 @@
           "lightSpeedFacts"
         );
 
-
-        messages =
-          createNewMemory();
+        messages = [
+          {
+            role: "system",
+            content:
+              "You are Light Speed Future 2.0, a helpful personal AI assistant. " +
+              "Answer directly, clearly, and briefly. " +
+              "Do not ramble. Do not repeat yourself. " +
+              "Give the answer first."
+          }
+        ];
 
         savedFacts = {};
 
-
         chat.innerHTML = "";
 
-
         status.textContent =
-          "Memory cleared! ⚡";
-
-
-        setTimeout(
-          function() {
-
-            if (generator) {
-
-              status.textContent =
-                "I'm online! ⚡";
-
-            } else {
-
-              status.textContent =
-                "Starting Light Speed Future...";
-
-            }
-
-          },
-          1500
-        );
-
-      }
-    );
-
-
-    /*
-      =====================================
-      LOAD AI IN BACKGROUND
-      =====================================
-    */
-
-    async function loadAI() {
-
-      try {
-
-        status.textContent =
-          "AI is loading in the background...";
-
-
-        generator =
-          await pipeline(
-            "text-generation",
-            "onnx-community/Qwen2.5-0.5B-Instruct"
-          );
-
-
-        status.textContent =
-          "I'm online! ⚡";
-
-
-        input.disabled = false;
-
-        sendButton.disabled = false;
-
-        sendButton.textContent = "Send";
-
+          "Memory cleared ⚡";
 
         input.focus();
-
-
-      } catch (error) {
-
-        console.error(error);
-
-
-        status.textContent =
-          "AI failed to load.";
-
-        sendButton.textContent =
-          "Retry";
-
-      }
-
-    }
-
-
-    /*
-      =====================================
-      ASK AI
-      =====================================
-    */
-
-    async function askAI() {
-
-      const text =
-        input.value.trim();
-
-
-      if (!text || !generator) {
-
-        return;
-
-      }
-
-
-      input.value = "";
-
-
-      sendButton.disabled =
-        true;
-
-
-      addMessage(
-        "You",
-        text
-      );
-
-
-      /*
-        SAVE USER MESSAGE
-      */
-
-      messages.push({
-
-        role: "user",
-
-        content: text
-
-      });
-
-
-      rememberFact(text);
-
-      saveMemory();
-
-
-      try {
-
-        /*
-          CHECK MEMORY FIRST
-        */
-
-        const savedFact =
-          findSavedFact(text);
-
-
-        if (savedFact) {
-
-          const answer =
-            `Your ${savedFact.subject} is ${savedFact.value}.`;
-
-
-          messages.push({
-
-            role: "assistant",
-
-            content: answer
-
-          });
-
-
-          saveMemory();
-
-
-          addMessage(
-            "AI",
-            answer
-          );
-
-
-          sendButton.disabled =
-            false;
-
-
-          input.focus();
-
-          return;
-
-        }
-
-
-        /*
-          OTHERWISE USE QWEN
-        */
-
-        const prompt =
-          generator.tokenizer.apply_chat_template(
-            messages,
-            {
-              tokenize: false,
-              add_generation_prompt: true
-            }
-          );
-
-
-        const result =
-          await generator(
-            prompt,
-            {
-              max_new_tokens: 40,
-              temperature: 0.05,
-              do_sample: true,
-              return_full_text: false
-            }
-          );
-
-
-        let answer =
-          result[0].generated_text;
-
-
-        if (Array.isArray(answer)) {
-
-          answer =
-            answer[
-              answer.length - 1
-            ]?.content || "";
-
-        }
-
-
-        if (
-          typeof answer !== "string"
-        ) {
-
-          answer =
-            String(answer || "");
-
-        }
-
-
-        answer =
-          answer.trim();
-
-
-        answer =
-          answer
-            .replace(
-              /<\|im_start\|>/g,
-              ""
-            )
-            .replace(
-              /<\|im_end\|>/g,
-              ""
-            )
-            .replace(
-              /<\|endoftext\|>/g,
-              ""
-            )
-            .trim();
-
-
-        if (
-          answer.includes("A:")
-        ) {
-
-          answer =
-            answer
-              .split("A:")
-              .pop()
-              .trim();
-
-        }
-
-
-        messages.push({
-
-          role: "assistant",
-
-          content: answer
-
-        });
-
-
-        saveMemory();
-
-
-        addMessage(
-          "AI",
-          answer
-        );
-
-
-      } catch (error) {
-
-        console.error(error);
-
-
-        addMessage(
-          "AI",
-          "I couldn't generate an answer. Please try again."
-        );
-
-      }
-
-
-      sendButton.disabled =
-        false;
-
-
-      input.focus();
-
-    }
-
-
-    /*
-      =====================================
-      BUTTON
-      =====================================
-    */
-
-    sendButton.addEventListener(
-      "click",
-      askAI
-    );
-
-
-    /*
-      =====================================
-      ENTER KEY
-      =====================================
-    */
-
-    input.addEventListener(
-      "keydown",
-      function(event) {
-
-        if (
-          event.key === "Enter"
-        ) {
-
-          askAI();
-
-        }
-
       }
     );
 
+    // =========================================================
+    // START AI IN BACKGROUND
+    // =========================================================
 
-    /*
-      =====================================
-      IMPORTANT:
-      SHOW MEMORY FIRST
-      THEN LOAD AI
-      =====================================
-    */
-
-    loadChat();
+    input.disabled = true;
+    sendButton.disabled = true;
 
     loadAI();
 
@@ -823,3 +776,4 @@
 
 </body>
 </html>
+```
