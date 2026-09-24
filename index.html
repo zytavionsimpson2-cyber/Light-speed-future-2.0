@@ -210,12 +210,10 @@ async function askAI() {
 
   try {
 
-  const prompt =
-  "You are Light Speed Future, a helpful AI assistant.\n" +
-  "Answer the user's question directly and accurately.\n" +
-  "Keep the answer short and clear.\n\n" +
-  "User: " + text + "\n" +
-  "Assistant:";
+    const prompt =
+    "Answer this question in one short sentence.\n" +
+    "Question: " + text + "\n" +
+    "Answer:";
 
     const result = await generator(prompt, {
   max_new_tokens: 40,
