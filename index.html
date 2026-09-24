@@ -132,8 +132,10 @@ const messages = [
     content:
       "You are Light Speed Future. " +
       "Answer the user's question directly. " +
-      "Keep simple questions short. " +
-      "Do not repeat system instructions."
+      "Do not ask the user what they think. " +
+      "Do not introduce yourself. " +
+      "Do not add greetings or unnecessary conversation. " +
+      "Give the answer first."
   }
 ];
 
@@ -218,8 +220,8 @@ async function askAI() {
     );
 
     const result = await generator(prompt, {
-      max_new_tokens: 40,
-      temperature: 0.3,
+      max_new_tokens: 30,
+      temperature: 0.2,
       do_sample: true,
       return_full_text: false
     });
@@ -242,20 +244,43 @@ async function askAI() {
     answer = answer.trim();
 
     /*
-      Remove chat-template text if the model
-      returns the entire conversation.
+      If the model includes A:, keep only
+      the actual answer after it.
     */
 
-    const assistantMarker =
-      /assistant\s*/i;
-
-    if (assistantMarker.test(answer)) {
-
-      const parts =
-        answer.split(assistantMarker);
+    if (answer.includes("A:")) {
 
       answer =
-        parts[parts.length - 1].trim();
+        answer.split("A:").pop().trim();
+
+    }
+
+    /*
+      Remove common unwanted conversation.
+    */
+
+    const unwanted = [
+      "What do you think?",
+      "If you have a question",
+      "write it down below",
+      "I'll get back to you",
+      "I can help you",
+      "How can I help you?"
+    ];
+
+    for (const phrase of unwanted) {
+
+      const index =
+        answer.toLowerCase().indexOf(
+          phrase.toLowerCase()
+        );
+
+      if (index === 0) {
+
+        answer =
+          answer.substring(phrase.length).trim();
+
+      }
 
     }
 
