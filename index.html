@@ -210,9 +210,21 @@ async function askAI() {
 
   try {
 
-   const prompt =
-  "Question: " + text + "\n" +
-  "Answer:";
+  const prompt = [
+  {
+    role: "system",
+    content:
+      "You are Light Speed Future, a helpful personal AI assistant. " +
+      "Answer questions directly and accurately. " +
+      "Keep answers short and clear. " +
+      "Do not make up information. " +
+      "Do not continue the conversation by yourself."
+  },
+  {
+    role: "user",
+    content: text
+  }
+];
 
     const result = await generator(prompt, {
   max_new_tokens: 40,
