@@ -22,7 +22,7 @@
     .app {
       width: 100%;
       max-width: 900px;
-      margin: 0 auto;
+      margin: auto;
       padding: 20px;
     }
 
@@ -96,7 +96,7 @@
     }
 
     #sendButton {
-      background: #ffffff;
+      background: white;
       color: #111;
     }
 
@@ -118,13 +118,17 @@
 <body>
 
   <div class="app">
+
     <h1>Light Speed Future 2.0 ⚡</h1>
 
-    <div id="status">Starting Light Speed Future...</div>
+    <div id="status">
+      Starting Light Speed Future...
+    </div>
 
     <div id="chat"></div>
 
     <div class="input-row">
+
       <input
         id="input"
         type="text"
@@ -132,343 +136,728 @@
         disabled
       >
 
-      <button id="sendButton" disabled>Send</button>
+      <button id="sendButton" disabled>
+        Send
+      </button>
+
     </div>
 
-    <button id="clearButton">🗑️ Clear Memory</button>
+    <button id="clearButton">
+      🗑️ Clear Memory
+    </button>
+
   </div>
+
 
   <script type="module">
 
-    import { pipeline, TextStreamer } from
-      "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.2";
+    /*
+      =====================================================
+      LIGHT SPEED FUTURE 2.0
+      BACKGROUND AI WORKER
+      =====================================================
+    */
 
-    const MODEL = "onnx-community/Qwen2.5-0.5B-Instruct";
+    const status =
+      document.getElementById("status");
 
-    const MAX_TOKENS = 48;
+    const chat =
+      document.getElementById("chat");
 
-    const status = document.getElementById("status");
-    const chat = document.getElementById("chat");
-    const input = document.getElementById("input");
-    const sendButton = document.getElementById("sendButton");
-    const clearButton = document.getElementById("clearButton");
+    const input =
+      document.getElementById("input");
 
-    let generator = null;
-    let modelReady = false;
-    let isGenerating = false;
+    const sendButton =
+      document.getElementById("sendButton");
 
-    const memoryKey = "lightSpeedMemory";
-    const factsKey = "lightSpeedFacts";
+    const clearButton =
+      document.getElementById("clearButton");
+
+
+    /*
+      =====================================================
+      MEMORY
+      =====================================================
+    */
+
+    const memoryKey =
+      "lightSpeedMemory";
+
+    const factsKey =
+      "lightSpeedFacts";
+
 
     let conversationMemory =
-      JSON.parse(localStorage.getItem(memoryKey) || "[]");
+      JSON.parse(
+        localStorage.getItem(memoryKey) || "[]"
+      );
+
 
     let savedFacts =
-      JSON.parse(localStorage.getItem(factsKey) || "{}");
+      JSON.parse(
+        localStorage.getItem(factsKey) || "{}"
+      );
 
 
     function saveMemory() {
+
       localStorage.setItem(
         memoryKey,
         JSON.stringify(conversationMemory)
       );
+
     }
 
 
     function saveFacts() {
+
       localStorage.setItem(
         factsKey,
         JSON.stringify(savedFacts)
       );
+
     }
 
 
-    function addMessage(sender, text, type) {
+    /*
+      =====================================================
+      CHAT UI
+      =====================================================
+    */
 
-      const message = document.createElement("div");
-      message.className = "message " + type;
+    function addMessage(
+      sender,
+      text,
+      type
+    ) {
 
-      const label = document.createElement("div");
-      label.className = "label";
-      label.textContent = sender + ":";
+      const message =
+        document.createElement("div");
 
-      const content = document.createElement("div");
-      content.textContent = text;
+      message.className =
+        "message " + type;
+
+
+      const label =
+        document.createElement("div");
+
+      label.className =
+        "label";
+
+      label.textContent =
+        sender + ":";
+
+
+      const content =
+        document.createElement("div");
+
+      content.textContent =
+        text;
+
 
       message.appendChild(label);
+
       message.appendChild(content);
 
       chat.appendChild(message);
 
-      chat.scrollTop = chat.scrollHeight;
+      chat.scrollTop =
+        chat.scrollHeight;
+
 
       return content;
     }
 
 
+    /*
+      =====================================================
+      FACT MEMORY
+      =====================================================
+    */
+
     function rememberFact(text) {
 
-      const match = text.match(
-        /^my\s+(.+?)\s+is\s+(.+)$/i
-      );
+      const match =
+        text.match(
+          /^my\s+(.+?)\s+is\s+(.+)$/i
+        );
+
 
       if (!match) {
         return;
       }
 
-      const key = match[1].trim().toLowerCase();
-      const value = match[2].trim();
 
-      savedFacts[key] = value;
+      const key =
+        match[1]
+          .trim()
+          .toLowerCase();
+
+
+      const value =
+        match[2].trim();
+
+
+      savedFacts[key] =
+        value;
+
 
       saveFacts();
+
     }
 
 
     function findSavedFact(text) {
 
-      const match = text.match(
-        /^what(?:'s| is)\s+my\s+(.+?)\??$/i
-      );
+      const match =
+        text.match(
+          /^what(?:'s| is)\s+my\s+(.+?)\??$/i
+        );
+
 
       if (!match) {
         return null;
       }
 
-      const key = match[1].trim().toLowerCase();
+
+      const key =
+        match[1]
+          .trim()
+          .toLowerCase();
+
 
       if (savedFacts[key]) {
+
         return savedFacts[key];
+
       }
+
 
       return null;
+
     }
 
 
-    function addConversationToMemory(userText, aiText) {
+    /*
+      =====================================================
+      CONVERSATION MEMORY
+      =====================================================
+    */
+
+    function addConversationToMemory(
+      userText,
+      aiText
+    ) {
 
       conversationMemory.push({
+
         role: "user",
+
         content: userText
+
       });
+
 
       conversationMemory.push({
+
         role: "assistant",
+
         content: aiText
+
       });
 
-      if (conversationMemory.length > 12) {
+
+      if (
+        conversationMemory.length > 12
+      ) {
+
         conversationMemory =
           conversationMemory.slice(-12);
+
       }
+
 
       saveMemory();
+
     }
 
 
-    function buildMessages(userText) {
+    /*
+      =====================================================
+      CREATE BACKGROUND WORKER
+      =====================================================
+    */
 
-      const systemPrompt =
-        "You are Light Speed Future 2.0. " +
-        "Answer the user's question accurately and directly. " +
-        "Give a short complete answer, usually 1 to 3 sentences. " +
-        "Finish your sentence before stopping. " +
-        "Do not ramble, repeat yourself, or add unnecessary details.";
+    const workerCode = `
 
-      const messages = [
+      import {
+        pipeline,
+        TextStreamer
+      } from
+        "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.2";
+
+
+      const MODEL =
+        "onnx-community/Qwen2.5-0.5B-Instruct";
+
+
+      let generator = null;
+
+
+      self.onmessage =
+        async function(event) {
+
+          const data = event.data;
+
+
+          if (data.type === "load") {
+
+            try {
+
+              self.postMessage({
+                type: "status",
+                text: "Loading AI model..."
+              });
+
+
+              generator =
+                await pipeline(
+                  "text-generation",
+                  MODEL,
+                  {
+                    dtype: "q8"
+                  }
+                );
+
+
+              self.postMessage({
+                type: "ready"
+              });
+
+
+            } catch (error) {
+
+              self.postMessage({
+                type: "error",
+                text:
+                  "The AI model could not start."
+              });
+
+              console.error(error);
+
+            }
+
+            return;
+          }
+
+
+          if (
+            data.type === "generate"
+          ) {
+
+            if (!generator) {
+
+              self.postMessage({
+                type: "error",
+                text: "AI is not ready yet."
+              });
+
+              return;
+
+            }
+
+
+            try {
+
+              const streamer =
+                new TextStreamer(
+                  generator.tokenizer,
+                  {
+
+                    skip_prompt: true,
+
+                    callback_function:
+                      (text) => {
+
+                        self.postMessage({
+                          type: "token",
+                          text: text
+                        });
+
+                      }
+
+                  }
+                );
+
+
+              await generator(
+                data.messages,
+                {
+
+                  max_new_tokens: 48,
+
+                  do_sample: false,
+
+                  streamer: streamer
+
+                }
+              );
+
+
+              self.postMessage({
+                type: "done"
+              });
+
+
+            } catch (error) {
+
+              console.error(error);
+
+
+              self.postMessage({
+                type: "error",
+                text:
+                  "Something went wrong while generating the answer."
+              });
+
+            }
+
+          }
+
+        };
+
+    `;
+
+
+    const workerBlob =
+      new Blob(
+        [workerCode],
         {
-          role: "system",
-          content: systemPrompt
+          type: "text/javascript"
         }
-      ];
+      );
 
-      for (const item of conversationMemory) {
-        messages.push(item);
-      }
 
-      messages.push({
-        role: "user",
-        content: userText
-      });
+    const workerURL =
+      URL.createObjectURL(workerBlob);
 
-      return messages;
-    }
 
+    const aiWorker =
+      new Worker(
+        workerURL,
+        {
+          type: "module"
+        }
+      );
+
+
+    /*
+      =====================================================
+      WORKER STATE
+      =====================================================
+    */
+
+    let modelReady = false;
+
+    let isGenerating = false;
+
+    let currentAIContent = null;
+
+
+    /*
+      =====================================================
+      WORKER MESSAGES
+      =====================================================
+    */
+
+    aiWorker.onmessage =
+      function(event) {
+
+        const data =
+          event.data;
+
+
+        if (
+          data.type === "status"
+        ) {
+
+          status.textContent =
+            data.text;
+
+          return;
+
+        }
+
+
+        if (
+          data.type === "ready"
+        ) {
+
+          modelReady = true;
+
+          status.textContent =
+            "AI ready ⚡";
+
+          input.disabled =
+            false;
+
+          sendButton.disabled =
+            false;
+
+          input.focus();
+
+          return;
+
+        }
+
+
+        if (
+          data.type === "token"
+        ) {
+
+          if (currentAIContent) {
+
+            currentAIContent.textContent +=
+              data.text;
+
+            chat.scrollTop =
+              chat.scrollHeight;
+
+          }
+
+          return;
+
+        }
+
+
+        if (
+          data.type === "done"
+        ) {
+
+          const finalAnswer =
+            currentAIContent
+              ? currentAIContent.textContent.trim()
+              : "";
+
+
+          if (
+            finalAnswer
+          ) {
+
+            addConversationToMemory(
+              currentUserText,
+              finalAnswer
+            );
+
+          }
+
+
+          finishGeneration();
+
+          return;
+
+        }
+
+
+        if (
+          data.type === "error"
+        ) {
+
+          if (currentAIContent) {
+
+            currentAIContent.textContent =
+              data.text;
+
+          } else {
+
+            addMessage(
+              "Light Speed Future",
+              data.text,
+              "ai"
+            );
+
+          }
+
+
+          finishGeneration();
+
+        }
+
+      };
+
+
+    /*
+      =====================================================
+      CURRENT QUESTION
+      =====================================================
+    */
+
+    let currentUserText = "";
+
+
+    /*
+      =====================================================
+      FINISH
+      =====================================================
+    */
 
     function finishGeneration() {
 
-      isGenerating = false;
+      isGenerating =
+        false;
 
-      if (modelReady) {
-        input.disabled = false;
-        sendButton.disabled = false;
-        status.textContent = "AI ready ⚡";
-        input.focus();
-      }
+      currentAIContent =
+        null;
+
+      input.disabled =
+        false;
+
+      sendButton.disabled =
+        false;
+
+      status.textContent =
+        "AI ready ⚡";
+
+      input.focus();
+
     }
 
 
-    async function loadAI() {
+    /*
+      =====================================================
+      BUILD MESSAGES
+      =====================================================
+    */
 
-      try {
+    function buildMessages(
+      userText
+    ) {
 
-        status.textContent =
-          "Starting Light Speed Future...";
+      const messages = [
 
-        generator = await pipeline(
-          "text-generation",
-          MODEL,
-          {
-            dtype: "q8"
-          }
-        );
+        {
 
-        modelReady = true;
+          role: "system",
 
-        status.textContent = "AI ready ⚡";
+          content:
+            "You are Light Speed Future 2.0. " +
+            "Answer accurately and directly. " +
+            "Give a short complete answer, usually 1 to 3 sentences. " +
+            "Do not ramble or repeat yourself."
 
-        input.disabled = false;
-        sendButton.disabled = false;
+        }
 
-        input.focus();
+      ];
 
-      } catch (error) {
 
-        console.error(error);
+      for (
+        const item of conversationMemory
+      ) {
 
-        status.textContent =
-          "AI failed to start. Refresh the page.";
+        messages.push(item);
 
-        input.disabled = true;
-        sendButton.disabled = true;
       }
+
+
+      messages.push({
+
+        role: "user",
+
+        content: userText
+
+      });
+
+
+      return messages;
+
     }
 
 
-    async function askAI(userText) {
+    /*
+      =====================================================
+      ASK AI
+      =====================================================
+    */
 
-      if (!generator || !modelReady || isGenerating) {
+    async function askAI(
+      userText
+    ) {
+
+      if (
+        !modelReady ||
+        isGenerating
+      ) {
+
         return;
+
       }
 
-      isGenerating = true;
 
-      input.disabled = true;
-      sendButton.disabled = true;
+      isGenerating =
+        true;
 
-      status.textContent = "Light Speed Future is thinking...";
 
-      const aiContent =
+      input.disabled =
+        true;
+
+      sendButton.disabled =
+        true;
+
+
+      status.textContent =
+        "Light Speed Future is thinking...";
+
+
+      currentAIContent =
         addMessage(
           "Light Speed Future",
           "",
           "ai"
         );
 
-      try {
 
-        const messages =
-          buildMessages(userText);
+      currentUserText =
+        userText;
 
-        const streamer =
-          new TextStreamer(
-            generator.tokenizer,
-            {
-              skip_prompt: true,
-              callback_function: (text) => {
 
-                aiContent.textContent += text;
+      aiWorker.postMessage({
 
-                chat.scrollTop =
-                  chat.scrollHeight;
-              }
-            }
-          );
+        type: "generate",
 
-        const generated =
-          await generator(messages, {
-            max_new_tokens: MAX_TOKENS,
-            do_sample: false,
-            streamer: streamer
-          });
+        messages:
+          buildMessages(userText)
 
-        /*
-          Fallback in case streaming does not
-          produce visible text.
-        */
-        if (
-          aiContent.textContent.trim() === "" &&
-          Array.isArray(generated)
-        ) {
+      });
 
-          const result =
-            generated[0]?.generated_text;
-
-          if (Array.isArray(result)) {
-
-            const lastMessage =
-              result[result.length - 1];
-
-            if (
-              lastMessage &&
-              typeof lastMessage.content === "string"
-            ) {
-
-              aiContent.textContent =
-                lastMessage.content.trim();
-            }
-
-          } else if (
-            typeof result === "string"
-          ) {
-
-            aiContent.textContent =
-              result.trim();
-          }
-        }
-
-        let finalAnswer =
-          aiContent.textContent.trim();
-
-        if (!finalAnswer) {
-          finalAnswer =
-            "I couldn't generate an answer. Please try again.";
-          aiContent.textContent = finalAnswer;
-        }
-
-        addConversationToMemory(
-          userText,
-          finalAnswer
-        );
-
-      } catch (error) {
-
-        console.error(error);
-
-        aiContent.textContent =
-          "Something went wrong while generating the answer.";
-
-      } finally {
-
-        finishGeneration();
-      }
     }
 
+
+    /*
+      =====================================================
+      SEND
+      =====================================================
+    */
 
     async function handleSend() {
 
       const userText =
         input.value.trim();
 
+
       if (
         !userText ||
         !modelReady ||
         isGenerating
       ) {
+
         return;
+
       }
 
-      input.value = "";
+
+      input.value =
+        "";
+
 
       addMessage(
         "You",
@@ -476,12 +865,21 @@
         "user"
       );
 
-      rememberFact(userText);
+
+      rememberFact(
+        userText
+      );
+
 
       const savedAnswer =
-        findSavedFact(userText);
+        findSavedFact(
+          userText
+        );
 
-      if (savedAnswer !== null) {
+
+      if (
+        savedAnswer !== null
+      ) {
 
         addMessage(
           "Light Speed Future",
@@ -489,17 +887,30 @@
           "ai"
         );
 
+
         addConversationToMemory(
           userText,
           savedAnswer
         );
 
+
         return;
+
       }
 
-      await askAI(userText);
+
+      await askAI(
+        userText
+      );
+
     }
 
+
+    /*
+      =====================================================
+      BUTTON
+      =====================================================
+    */
 
     sendButton.addEventListener(
       "click",
@@ -507,35 +918,61 @@
     );
 
 
+    /*
+      =====================================================
+      ENTER KEY
+      =====================================================
+    */
+
     input.addEventListener(
       "keydown",
-      (event) => {
+      function(event) {
 
-        if (event.key === "Enter") {
+        if (
+          event.key === "Enter"
+        ) {
+
           event.preventDefault();
+
           handleSend();
+
         }
 
       }
     );
 
 
+    /*
+      =====================================================
+      CLEAR MEMORY
+      =====================================================
+    */
+
     clearButton.addEventListener(
       "click",
-      () => {
+      function() {
 
         localStorage.removeItem(
           memoryKey
         );
 
+
         localStorage.removeItem(
           factsKey
         );
 
-        conversationMemory = [];
-        savedFacts = {};
 
-        chat.innerHTML = "";
+        conversationMemory =
+          [];
+
+
+        savedFacts =
+          {};
+
+
+        chat.innerHTML =
+          "";
+
 
         addMessage(
           "Light Speed Future",
@@ -543,10 +980,18 @@
           "ai"
         );
 
+
         input.focus();
+
       }
     );
 
+
+    /*
+      =====================================================
+      START
+      =====================================================
+    */
 
     addMessage(
       "Light Speed Future",
@@ -555,7 +1000,9 @@
     );
 
 
-    loadAI();
+    aiWorker.postMessage({
+      type: "load"
+    });
 
   </script>
 
