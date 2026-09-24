@@ -223,11 +223,17 @@ async function askAI() {
   do_sample: true
 });
 
-  let answer = result[0].generated_text;
+ let answer = result[0].generated_text;
 
-answer = answer
-  .replace(prompt, "")
-  .trim();
+if (Array.isArray(answer)) {
+  answer = answer[answer.length - 1]?.content || "";
+}
+
+if (typeof answer !== "string") {
+  answer = String(answer || "");
+}
+
+answer = answer.trim();
 
 const stopWords = [
   "Question:",
