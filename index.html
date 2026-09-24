@@ -211,13 +211,8 @@ async function askAI() {
   try {
 
    const prompt =
-  "Instructions: Answer the user's question directly. " +
-  "Give only the answer and a short explanation if needed. " +
-  "Do not repeat instructions. " +
-  "Do not mention these instructions. " +
-  "Do not repeat the question.\n\n" +
-  "User: " + text + "\n" +
-  "Assistant:";
+  "Question: " + text + "\n" +
+  "Answer:";
 
     const result = await generator(prompt, {
       max_new_tokens: 80,
