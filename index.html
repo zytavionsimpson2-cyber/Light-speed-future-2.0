@@ -220,12 +220,13 @@ async function askAI() {
       do_sample: true
     });
 
-    let answer = result[0].generated_text;
+   let answer = result[0].generated_text;
 
-    answer = answer
-      .replace(prompt, "")
-      .replace(/^assistant:\s*/i, "")
-      .trim();
+answer = answer
+  .replace(prompt, "")
+  .trim();
+
+answer = answer.split(/\b(User|Assistant|Blogger):/i)[0].trim();
 
     if (!answer) {
       answer = "I couldn't generate an answer. Please try again.";
