@@ -113,11 +113,6 @@
     #clearMemory:hover {
       background: #444;
     }
-
-    .loading {
-      color: #aaa;
-      font-style: italic;
-    }
   </style>
 </head>
 
@@ -134,6 +129,7 @@
     <div id="chat"></div>
 
     <div class="controls">
+
       <input
         id="input"
         type="text"
@@ -144,6 +140,7 @@
       <button id="sendButton">
         Send
       </button>
+
     </div>
 
     <button id="clearMemory">
@@ -159,24 +156,37 @@
       TextStreamer
     } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.2";
 
-    // =========================================================
-    // SETTINGS
-    // =========================================================
-
-    const MODEL = "onnx-community/Qwen2.5-0.5B-Instruct";
-
-    // Lower number = faster response
-    const MAX_TOKENS = 48;
 
     // =========================================================
-    // PAGE ELEMENTS
+    // SPEED SETTINGS
     // =========================================================
 
-    const chat = document.getElementById("chat");
-    const input = document.getElementById("input");
-    const sendButton = document.getElementById("sendButton");
-    const clearMemoryButton = document.getElementById("clearMemory");
-    const status = document.getElementById("status");
+    const MODEL =
+      "onnx-community/Qwen2.5-0.5B-Instruct";
+
+    // Smaller = faster
+    const MAX_TOKENS = 24;
+
+
+    // =========================================================
+    // PAGE
+    // =========================================================
+
+    const chat =
+      document.getElementById("chat");
+
+    const input =
+      document.getElementById("input");
+
+    const sendButton =
+      document.getElementById("sendButton");
+
+    const clearMemoryButton =
+      document.getElementById("clearMemory");
+
+    const status =
+      document.getElementById("status");
+
 
     // =========================================================
     // MEMORY
@@ -186,73 +196,85 @@
       {
         role: "system",
         content:
-          "You are Light Speed Future 2.0, a helpful personal AI assistant. " +
-          "Answer directly, clearly, and briefly. " +
-          "Do not ramble. Do not repeat yourself. " +
-          "Give the answer first. Use simple explanations when needed."
+          "You are Light Speed Future 2.0. " +
+          "Answer clearly, directly and briefly. " +
+          "Do not ramble."
       }
     ];
 
+
     let savedFacts = {};
 
-    // Load conversation memory
+
+    // Load conversation
     try {
+
       const storedMemory =
-        JSON.parse(localStorage.getItem("lightSpeedMemory"));
+        JSON.parse(
+          localStorage.getItem(
+            "lightSpeedMemory"
+          )
+        );
 
-      if (Array.isArray(storedMemory) && storedMemory.length > 0) {
+      if (
+        Array.isArray(storedMemory) &&
+        storedMemory.length > 0
+      ) {
+
         messages = storedMemory;
+
       }
+
     } catch (error) {
-      console.log("Memory could not be loaded.");
+
+      console.log(
+        "Memory could not be loaded."
+      );
+
     }
 
-    // Load saved facts
+
+    // Load facts
     try {
-      const storedFacts =
-        JSON.parse(localStorage.getItem("lightSpeedFacts"));
 
-      if (storedFacts && typeof storedFacts === "object") {
+      const storedFacts =
+        JSON.parse(
+          localStorage.getItem(
+            "lightSpeedFacts"
+          )
+        );
+
+      if (
+        storedFacts &&
+        typeof storedFacts === "object"
+      ) {
+
         savedFacts = storedFacts;
+
       }
+
     } catch (error) {
-      console.log("Saved facts could not be loaded.");
+
+      console.log(
+        "Facts could not be loaded."
+      );
+
     }
+
 
     // =========================================================
     // STATE
     // =========================================================
 
     let generator = null;
+
     let modelReady = false;
+
     let isGenerating = false;
 
-    // =========================================================
-    // DISPLAY MESSAGE
-    // =========================================================
-
-    function addMessage(type, text) {
-
-      const message = document.createElement("div");
-      message.className = "message";
-
-      if (type === "User") {
-        message.innerHTML =
-          `<strong class="user">You:</strong> ${escapeHTML(text)}`;
-      } else {
-        message.innerHTML =
-          `<strong class="ai">Light Speed Future:</strong> ${escapeHTML(text)}`;
-      }
-
-      chat.appendChild(message);
-
-      chat.scrollTop = chat.scrollHeight;
-
-      return message;
-    }
 
     // =========================================================
-    // ESCAPE HTML
+    // HTML SAFETY
     // =========================================================
 
     function escapeHTML(text) {
@@ -263,36 +285,86 @@
         .replaceAll(">", "&gt;")
         .replaceAll('"', "&quot;")
         .replaceAll("'", "&#039;");
+
     }
 
+
     // =========================================================
-    // SHOW SAVED CONVERSATION
+    // ADD MESSAGE
+    // =========================================================
+
+    function addMessage(type, text) {
+
+      const message =
+        document.createElement("div");
+
+      message.className =
+        "message";
+
+      if (type === "User") {
+
+        message.innerHTML =
+          `<strong class="user">You:</strong> ` +
+          escapeHTML(text);
+
+      } else {
+
+        message.innerHTML =
+          `<strong class="ai">Light Speed Future:</strong> ` +
+          escapeHTML(text);
+
+      }
+
+      chat.appendChild(message);
+
+      chat.scrollTop =
+        chat.scrollHeight;
+
+      return message;
+
+    }
+
+
+    // =========================================================
+    // SHOW MEMORY
     // =========================================================
 
     function showConversation() {
 
       chat.innerHTML = "";
 
-      const visibleMessages =
-        messages.filter(message =>
-          message.role === "user" ||
-          message.role === "assistant"
+      const visible =
+        messages.filter(
+          message =>
+            message.role === "user" ||
+            message.role === "assistant"
         );
 
-      for (const message of visibleMessages) {
+      for (const message of visible) {
 
         if (message.role === "user") {
-          addMessage("User", message.content);
+
+          addMessage(
+            "User",
+            message.content
+          );
+
+        } else {
+
+          addMessage(
+            "AI",
+            message.content
+          );
+
         }
 
-        if (message.role === "assistant") {
-          addMessage("AI", message.content);
-        }
       }
+
     }
 
-    // Show chat immediately
+
     showConversation();
+
 
     // =========================================================
     // SAVE MEMORY
@@ -301,88 +373,124 @@
     function saveMemory() {
 
       try {
+
         localStorage.setItem(
           "lightSpeedMemory",
           JSON.stringify(messages)
         );
+
       } catch (error) {
-        console.log("Could not save memory.");
+
+        console.log(
+          "Could not save memory."
+        );
+
       }
+
     }
 
+
     // =========================================================
-    // SAVE FACT
+    // SAVE FACTS
     // =========================================================
 
     function saveFacts() {
 
       try {
+
         localStorage.setItem(
           "lightSpeedFacts",
           JSON.stringify(savedFacts)
         );
+
       } catch (error) {
-        console.log("Could not save facts.");
+
+        console.log(
+          "Could not save facts."
+        );
+
       }
+
     }
 
+
     // =========================================================
-    // REMEMBER SIMPLE FACTS
+    // REMEMBER FACT
     // =========================================================
 
     function rememberFact(text) {
 
-      const match = text.match(
-        /^my\s+(.+?)\s+is\s+(.+)$/i
-      );
+      const match =
+        text.match(
+          /^my\s+(.+?)\s+is\s+(.+)$/i
+        );
 
       if (!match) {
+
         return false;
+
       }
 
-      const key = match[1]
-        .trim()
-        .toLowerCase();
+      const key =
+        match[1]
+          .trim()
+          .toLowerCase();
 
-      const value = match[2]
-        .trim();
+      const value =
+        match[2]
+          .trim();
 
       if (!key || !value) {
+
         return false;
+
       }
 
-      savedFacts[key] = value;
+      savedFacts[key] =
+        value;
 
       saveFacts();
 
       return true;
+
     }
 
+
     // =========================================================
-    // FIND SAVED FACT
+    // FIND FACT
     // =========================================================
 
     function findSavedFact(text) {
 
-      const match = text.match(
-        /^what(?:'s| is)\s+my\s+(.+?)[?!.]*$/i
-      );
+      const match =
+        text.match(
+          /^what(?:'s| is)\s+my\s+(.+?)[?!.]*$/i
+        );
 
       if (!match) {
+
         return null;
+
       }
 
-      const key = match[1]
-        .trim()
-        .toLowerCase();
+      const key =
+        match[1]
+          .trim()
+          .toLowerCase();
 
       if (savedFacts[key]) {
 
-        return `Your ${key} is ${savedFacts[key]}.`;
+        return (
+          `Your ${key} is ` +
+          `${savedFacts[key]}.`
+        );
+
       }
 
       return null;
+
     }
+
 
     // =========================================================
     // LOAD AI
@@ -391,17 +499,18 @@
     async function loadAI() {
 
       status.textContent =
-        "Loading AI... first load may take a little while.";
+        "Loading AI...";
 
       try {
 
-        generator = await pipeline(
-          "text-generation",
-          MODEL,
-          {
-            dtype: "q8"
-          }
-        );
+        generator =
+          await pipeline(
+            "text-generation",
+            MODEL,
+            {
+              dtype: "q8"
+            }
+          );
 
         modelReady = true;
 
@@ -409,6 +518,7 @@
           "AI ready ⚡";
 
         input.disabled = false;
+
         sendButton.disabled = false;
 
         input.focus();
@@ -418,11 +528,35 @@
         console.error(error);
 
         status.textContent =
-          "AI failed to load. Refresh the page and try again.";
+          "AI failed to load. Refresh and try again.";
 
-        modelReady = false;
       }
+
     }
+
+
+    // =========================================================
+    // FINISH GENERATION
+    // =========================================================
+
+    function finishGeneration() {
+
+      isGenerating = false;
+
+      input.disabled = false;
+
+      sendButton.disabled = false;
+
+      sendButton.textContent =
+        "Send";
+
+      status.textContent =
+        "AI ready ⚡";
+
+      input.focus();
+
+    }
+
 
     // =========================================================
     // ASK AI
@@ -430,32 +564,46 @@
 
     async function askAI() {
 
+      // Prevent double-clicks
       if (isGenerating) {
+
         return;
+
       }
 
-      const text = input.value.trim();
+
+      const text =
+        input.value.trim();
+
 
       if (!text) {
+
         return;
+
       }
 
-      // Prevent duplicate clicks
+
       isGenerating = true;
 
       input.disabled = true;
+
       sendButton.disabled = true;
 
-      sendButton.textContent = "Thinking...";
+      sendButton.textContent =
+        "Thinking...";
+
 
       input.value = "";
 
-      addMessage("User", text);
 
-      // -------------------------------------------------------
-      // SAVE USER MESSAGE
-      // -------------------------------------------------------
+      // Show user message
+      addMessage(
+        "User",
+        text
+      );
 
+
+      // Save user message
       messages.push({
         role: "user",
         content: text
@@ -463,19 +611,20 @@
 
       saveMemory();
 
-      // -------------------------------------------------------
-      // REMEMBER FACT
-      // -------------------------------------------------------
 
-      const remembered =
-        rememberFact(text);
+      // =======================================================
+      // SAVED FACT
+      // =======================================================
 
-      if (remembered) {
+      if (rememberFact(text)) {
 
         const answer =
           "Got it. I'll remember that.";
 
-        addMessage("AI", answer);
+        addMessage(
+          "AI",
+          answer
+        );
 
         messages.push({
           role: "assistant",
@@ -487,18 +636,24 @@
         finishGeneration();
 
         return;
+
       }
 
-      // -------------------------------------------------------
-      // CHECK SAVED FACTS BEFORE USING AI
-      // -------------------------------------------------------
+
+      // =======================================================
+      // INSTANT MEMORY ANSWER
+      // =======================================================
 
       const savedAnswer =
         findSavedFact(text);
 
+
       if (savedAnswer) {
 
-        addMessage("AI", savedAnswer);
+        addMessage(
+          "AI",
+          savedAnswer
+        );
 
         messages.push({
           role: "assistant",
@@ -510,18 +665,23 @@
         finishGeneration();
 
         return;
+
       }
 
-      // -------------------------------------------------------
-      // MAKE SURE AI IS READY
-      // -------------------------------------------------------
+
+      // =======================================================
+      // AI NOT READY
+      // =======================================================
 
       if (!modelReady || !generator) {
 
         const answer =
-          "I'm still loading. Give me a moment, then try again.";
+          "I'm still loading. Try again in a moment.";
 
-        addMessage("AI", answer);
+        addMessage(
+          "AI",
+          answer
+        );
 
         messages.push({
           role: "assistant",
@@ -533,75 +693,90 @@
         finishGeneration();
 
         return;
+
       }
 
-      // -------------------------------------------------------
-      // CREATE AI MESSAGE
-      // -------------------------------------------------------
+
+      // =======================================================
+      // CREATE STREAMING MESSAGE
+      // =======================================================
 
       const aiMessage =
         document.createElement("div");
 
-      aiMessage.className = "message";
+      aiMessage.className =
+        "message";
 
       aiMessage.innerHTML =
-        `<strong class="ai">Light Speed Future:</strong> <span class="answer"></span>`;
+        `<strong class="ai">Light Speed Future:</strong> ` +
+        `<span class="answer"></span>`;
 
-      chat.appendChild(aiMessage);
+      chat.appendChild(
+        aiMessage
+      );
 
-      chat.scrollTop = chat.scrollHeight;
 
       const answerElement =
-        aiMessage.querySelector(".answer");
+        aiMessage.querySelector(
+          ".answer"
+        );
+
 
       let answer = "";
 
+
       try {
 
-        // -----------------------------------------------------
-        // STREAM RESPONSE
-        // -----------------------------------------------------
+        // =====================================================
+        // STREAM
+        // =====================================================
 
-        const streamer = new TextStreamer(
-          generator.tokenizer,
-          {
-            skip_prompt: true,
+        const streamer =
+          new TextStreamer(
+            generator.tokenizer,
+            {
+              skip_prompt: true,
 
-            callback_function:
-              (token) => {
+              callback_function:
+                token => {
 
-                answer += token;
+                  answer += token;
 
-                answerElement.textContent =
-                  answer;
+                  answerElement.textContent =
+                    answer;
 
-                chat.scrollTop =
-                  chat.scrollHeight;
-              }
-          }
-        );
+                  chat.scrollTop =
+                    chat.scrollHeight;
 
-        // -----------------------------------------------------
+                }
+
+            }
+          );
+
+
+        // =====================================================
         // GENERATE
-        // -----------------------------------------------------
+        // =====================================================
 
         const output =
           await generator(
             messages,
             {
-              max_new_tokens: MAX_TOKENS,
+              max_new_tokens:
+                MAX_TOKENS,
 
-              temperature: 0.1,
+              do_sample:
+                false,
 
-              do_sample: false,
-
-              streamer: streamer
+              streamer:
+                streamer
             }
           );
 
-        // -----------------------------------------------------
-        // FALLBACK IF STREAMING DID NOT RETURN TEXT
-        // -----------------------------------------------------
+
+        // =====================================================
+        // FALLBACK
+        // =====================================================
 
         if (!answer.trim()) {
 
@@ -610,48 +785,62 @@
             const generated =
               output?.[0]?.generated_text;
 
-            if (Array.isArray(generated)) {
+
+            if (
+              Array.isArray(generated)
+            ) {
 
               const last =
-                generated[generated.length - 1];
+                generated[
+                  generated.length - 1
+                ];
+
 
               if (last?.content) {
-                answer = last.content;
+
+                answer =
+                  last.content;
+
               }
 
             } else if (
               typeof generated === "string"
             ) {
 
-              answer = generated;
+              answer =
+                generated;
+
             }
 
           } catch (error) {
+
             console.log(
-              "Could not read fallback response."
+              "Fallback failed."
             );
+
           }
+
         }
 
-        // -----------------------------------------------------
-        // CLEAN ANSWER
-        // -----------------------------------------------------
 
-        answer = String(answer || "").trim();
+        answer =
+          String(answer || "")
+            .trim();
+
 
         if (!answer) {
 
           answer =
             "I couldn't generate an answer. Try again.";
+
         }
+
 
         answerElement.textContent =
           answer;
 
-        // -----------------------------------------------------
-        // SAVE AI RESPONSE
-        // -----------------------------------------------------
 
+        // Save AI response
         messages.push({
           role: "assistant",
           content: answer
@@ -659,42 +848,25 @@
 
         saveMemory();
 
+
       } catch (error) {
 
         console.error(error);
 
-        answer =
-          "Something went wrong while generating the answer.";
+        const errorAnswer =
+          "Something went wrong. Try again.";
 
         answerElement.textContent =
-          answer;
+          errorAnswer;
 
       } finally {
 
         finishGeneration();
+
       }
+
     }
 
-    // =========================================================
-    // UNLOCK AFTER RESPONSE
-    // =========================================================
-
-    function finishGeneration() {
-
-      isGenerating = false;
-
-      input.disabled = false;
-      sendButton.disabled = false;
-
-      sendButton.textContent = "Send";
-
-      input.focus();
-
-      status.textContent =
-        modelReady
-          ? "AI ready ⚡"
-          : "AI loading...";
-    }
 
     // =========================================================
     // SEND BUTTON
@@ -705,25 +877,28 @@
       askAI
     );
 
+
     // =========================================================
-    // ENTER KEY
+    // ENTER
     // =========================================================
 
     input.addEventListener(
       "keydown",
-      (event) => {
+      event => {
 
         if (
-          event.key === "Enter" &&
-          !event.shiftKey
+          event.key === "Enter"
         ) {
 
           event.preventDefault();
 
           askAI();
+
         }
+
       }
     );
+
 
     // =========================================================
     // CLEAR MEMORY
@@ -741,33 +916,40 @@
           "lightSpeedFacts"
         );
 
+
         messages = [
           {
             role: "system",
             content:
-              "You are Light Speed Future 2.0, a helpful personal AI assistant. " +
-              "Answer directly, clearly, and briefly. " +
-              "Do not ramble. Do not repeat yourself. " +
-              "Give the answer first."
+              "You are Light Speed Future 2.0. " +
+              "Answer clearly, directly and briefly. " +
+              "Do not ramble."
           }
         ];
 
+
         savedFacts = {};
 
+
         chat.innerHTML = "";
+
 
         status.textContent =
           "Memory cleared ⚡";
 
+
         input.focus();
+
       }
     );
 
+
     // =========================================================
-    // START AI IN BACKGROUND
+    // START AI
     // =========================================================
 
     input.disabled = true;
+
     sendButton.disabled = true;
 
     loadAI();
